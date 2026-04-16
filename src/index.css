@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1d9bf0;
+  --color-primary-container: #1d9bf0;
+  --color-on-primary-container: #ffffff;
+  --color-on-primary: #000000;
+  
+  --color-secondary: #ff44aa;
+  --color-secondary-container: #2d1a24;
+  --color-on-secondary-container: #ffd9e2;
+  --color-on-secondary: #ffffff;
+
+  --color-background: #000000;
+  --color-surface: #0a0a0a;
+  --color-on-surface: #e7e9ea;
+  --color-on-surface-variant: #71767b;
+  
+  --color-surface-container-low: #0a0a0a;
+  --color-surface-container-high: #1a1a1a;
+  --color-surface-container-highest: #262626;
+  --color-surface-container-lowest: #050505;
+
+  --color-outline: #71767b;
+  --color-outline-variant: #1a1a1a;
+  
+  --color-error: #ff4444;
+  --color-error-container: #93000a;
+
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body: "Manrope", sans-serif;
+  --font-label: "Manrope", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-body antialiased;
+    min-height: 100dvh;
+  }
+}
+
+.glass-panel {
+  @apply bg-white/5 backdrop-blur-2xl border border-white/10;
+}
+
+.neo-gradient-text {
+  @apply bg-linear-to-br from-primary to-primary-container bg-clip-text text-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-surface-container-highest rounded-full;
+}
