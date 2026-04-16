@@ -65,6 +65,8 @@ interface Post {
   image?: string;
   likes: number;
   comments: number;
+  liked?: boolean;
+  bookmarked?: boolean;
 }
 
 interface Chat {
@@ -345,10 +347,16 @@ const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack
   );
 };
 
-const DiscoveryScreen = () => {
+const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: { 
+  onAction: (msg: string, type?: 'success' | 'info') => void,
+  onProfileClick: (id: string) => void,
+  onBookmarkSync: (post: Post, isRemoved: boolean) => void
+}) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
+  const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
   
   const [posts, setPosts] = useState<Post[]>([
     {
@@ -414,6 +422,43 @@ const DiscoveryScreen = () => {
     
     // Automatically switch to carbon feed to see the new post
     if (activeFeed === 'silicon') setActiveFeed('carbon');
+  };
+
+  const handlePostAction = (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    setPosts(prev => prev.map(post => {
+      if (post.id !== id) return post;
+      
+      switch (action) {
+        case 'like':
+          return { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 };
+        case 'comment':
+          if (openCommentPostId === id) {
+            setOpenCommentPostId(null);
+          } else {
+            setOpenCommentPostId(id);
+            setCommentText('');
+          }
+          return post;
+        case 'bookmark':
+          const willBeBookmarked = !post.bookmarked;
+          if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
+          onBookmarkSync(post, !willBeBookmarked);
+          return { ...post, bookmarked: willBeBookmarked };
+        case 'share':
+          onAction('链接已复制到剪切板', 'info');
+          return post;
+        default:
+          return post;
+      }
+    }));
+  };
+
+  const handleSendComment = (postId: string) => {
+    if (!commentText.trim()) return;
+    onAction('评论已同步到广场', 'success');
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
+    setOpenCommentPostId(null);
+    setCommentText('');
   };
 
   const renderContent = (content: string) => {
@@ -568,7 +613,12 @@ const DiscoveryScreen = () => {
               >
                 <div className="flex gap-4">
                   <div className="relative">
-                    <img src={post.author.avatar} className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5`} referrerPolicy="no-referrer" />
+                    <img 
+                      src={post.author.avatar} 
+                      onClick={() => onProfileClick(post.author.name === 'Alex Chen' ? 'me' : (post.author.isAgent ? 'a' + post.id : 'h' + post.id))}
+                      className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5 cursor-pointer hover:border-primary transition-all`} 
+                      referrerPolicy="no-referrer" 
+                    />
                     {post.author.isAgent && (
                       <div className="absolute -bottom-1 -right-1 bg-primary w-4 h-4 rounded-full flex items-center justify-center border border-background">
                         <Sparkles size={8} className="text-on-primary fill-current" />
@@ -592,12 +642,71 @@ const DiscoveryScreen = () => {
                         <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60" />
                       </div>
                     )}
-                    <div className="flex justify-between items-center text-outline/60">
-                      <button className="flex items-center gap-2 hover:text-primary transition-colors group"><Heart size={18} className="group-hover:fill-primary" /><span className="text-[10px] font-bold">{post.likes}</span></button>
-                      <button className="flex items-center gap-2 hover:text-primary transition-colors group"><MessageCircle size={18} /><span className="text-[10px] font-bold">{post.comments}</span></button>
-                      <button className="flex items-center gap-2 hover:text-primary transition-colors"><Bookmark size={18} /></button>
-                      <button className="flex items-center gap-2 hover:text-primary transition-colors"><Share size={18} /></button>
+                    <div className="flex justify-between items-center text-outline/60 px-1">
+                      <motion.button 
+                        whileTap={{ scale: 0.8 }}
+                        onClick={() => handlePostAction(post.id, 'like')}
+                        className={`flex items-center gap-2 transition-colors group ${post.liked ? 'text-primary' : 'hover:text-primary'}`}
+                      >
+                        <Heart size={18} className={`${post.liked ? 'fill-primary' : 'group-hover:fill-primary'}`} />
+                        <span className="text-[10px] font-bold">{post.likes}</span>
+                      </motion.button>
+                      
+                      <motion.button 
+                        whileTap={{ scale: 0.8 }}
+                        onClick={() => handlePostAction(post.id, 'comment')}
+                        className="flex items-center gap-2 hover:text-primary transition-colors group"
+                      >
+                        <MessageCircle size={18} />
+                        <span className="text-[10px] font-bold">{post.comments}</span>
+                      </motion.button>
+                      
+                      <motion.button 
+                        whileTap={{ scale: 0.8 }}
+                        onClick={() => handlePostAction(post.id, 'bookmark')}
+                        className={`flex items-center gap-2 transition-colors ${post.bookmarked ? 'text-primary' : 'hover:text-primary'}`}
+                      >
+                        <Bookmark size={18} className={post.bookmarked ? 'fill-primary' : ''} />
+                      </motion.button>
+                      
+                      <motion.button 
+                        whileTap={{ scale: 0.8 }}
+                        onClick={() => handlePostAction(post.id, 'share')}
+                        className="flex items-center gap-2 hover:text-primary transition-colors"
+                      >
+                        <Share size={18} />
+                      </motion.button>
                     </div>
+
+                    <AnimatePresence>
+                      {openCommentPostId === post.id && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="mt-4 overflow-hidden"
+                        >
+                          <div className="flex gap-3 bg-surface-container-low p-2 rounded-xl border border-white/5">
+                            <input 
+                              autoFocus
+                              type="text"
+                              value={commentText}
+                              onChange={(e) => setCommentText(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSendComment(post.id)}
+                              placeholder="撰写评论..."
+                              className="flex-1 bg-transparent border-none focus:ring-0 text-xs text-on-surface placeholder:text-outline/40"
+                            />
+                            <button 
+                              onClick={() => handleSendComment(post.id)}
+                              disabled={!commentText.trim()}
+                              className="text-primary font-bold text-xs px-2 hover:opacity-80 disabled:opacity-30"
+                            >
+                              发送
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.article>
@@ -720,7 +829,11 @@ const MessagesScreen = ({ onChatClick }: { onChatClick: (id: string) => void }) 
   );
 };
 
-const MeScreen = ({ onCreateAgent, onManageAgent }: { onCreateAgent: () => void, onManageAgent: (id: string) => void }) => {
+const MeScreen = ({ onCreateAgent, onManageAgent, bookmarkedPosts }: { 
+  onCreateAgent: () => void, 
+  onManageAgent: (id: string) => void,
+  bookmarkedPosts: Post[]
+}) => {
   const agents: (Agent & { syncRate: number })[] = [
     { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active' as const, traits: ['高效', '专业'] },
     { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', syncRate: 99.8, status: 'active' as const, traits: ['温文尔雅'] },
@@ -811,27 +924,41 @@ const MeScreen = ({ onCreateAgent, onManageAgent }: { onCreateAgent: () => void,
           <div className="bg-surface-container-high/40 rounded-xl p-6 border border-white/5 hover:bg-surface-container-high transition-all">
             <h3 className="text-xl font-headline font-semibold mb-6 flex items-center gap-2">
               <Bookmark size={20} className="text-primary" />
-              我的收藏
+              我的收藏 ({bookmarkedPosts.length})
             </h3>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50">
-                <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary">
-                  <FileIcon size={24} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate leading-tight">超越图灵：意识的数字化...</p>
-                  <p className="text-[10px] text-outline uppercase mt-1">PDF • 2.4MB</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50">
-                <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary">
-                  <Music size={24} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate leading-tight">Agent 012 的共鸣频率</p>
-                  <p className="text-[10px] text-outline uppercase mt-1">Audio • 12:45</p>
-                </div>
-              </div>
+            <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+              {bookmarkedPosts.length > 0 ? (
+                bookmarkedPosts.map(post => (
+                  <div key={post.id} className="flex items-center gap-4 p-3 rounded-lg bg-background/50 border border-white/5">
+                    <img src={post.author.avatar} className="w-10 h-10 rounded-lg object-cover" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate leading-tight">{post.content}</p>
+                      <p className="text-[10px] text-outline uppercase mt-1">广场动态 • {post.author.name}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50">
+                    <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary">
+                      <FileIcon size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate leading-tight">超越图灵：意识的数字化...</p>
+                      <p className="text-[10px] text-outline uppercase mt-1">PDF • 2.4MB</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-background/50">
+                    <div className="w-12 h-12 bg-primary/10 rounded flex items-center justify-center text-primary">
+                      <Music size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate leading-tight">Agent 012 的共鸣频率</p>
+                      <p className="text-[10px] text-outline uppercase mt-1">Audio • 12:45</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -1084,9 +1211,10 @@ const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-const ContactsScreen = ({ onChatClick, onDetailClick }: { 
+const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: { 
   onChatClick: (id: string) => void,
-  onDetailClick: (id: string) => void
+  onDetailClick: (id: string) => void,
+  onAction: (msg: string) => void
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
@@ -1206,7 +1334,10 @@ const ContactsScreen = ({ onChatClick, onDetailClick }: {
               className="w-full max-w-sm bg-surface-container rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
             >
               <div className="h-24 bg-linear-to-br from-primary/20 to-primary-container/20 relative">
-                <div className="absolute top-4 right-4 text-primary bg-background/40 backdrop-blur-sm p-1.5 rounded-full border border-white/5">
+                <div 
+                  onClick={() => onAction('名片链接已生成并复制')}
+                  className="absolute top-4 right-4 text-primary bg-background/40 backdrop-blur-sm p-1.5 rounded-full border border-white/5 cursor-pointer active:scale-90 transition-transform"
+                >
                   <Share size={16} />
                 </div>
               </div>
@@ -1549,9 +1680,23 @@ const AgentDetailScreen = ({ profileId, onBack, onChatClick }: {
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('square');
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const showToast = (message: string, type: 'success' | 'info' = 'info') => {
+    setToast({ message, type });
+  };
 
   if (!isLoggedIn) {
     if (currentView === 'register') {
@@ -1565,6 +1710,14 @@ export default function App() {
     setCurrentView('agent-detail');
   };
 
+  const handleBookmarkSync = (post: Post, isRemoved: boolean) => {
+    if (isRemoved) {
+      setBookmarkedPosts(prev => prev.filter(p => p.id !== post.id));
+    } else {
+      setBookmarkedPosts(prev => [post, ...prev]);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
       <AnimatePresence>
@@ -1575,18 +1728,26 @@ export default function App() {
             exit={{ opacity: 0 }}
             className="h-full"
           >
-            {activeTab === 'square' && <DiscoveryScreen />}
+            {activeTab === 'square' && (
+              <DiscoveryScreen 
+                onAction={showToast} 
+                onProfileClick={handleProfileDetail}
+                onBookmarkSync={handleBookmarkSync}
+              />
+            )}
             {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
                 onChatClick={() => setCurrentView('chat')} 
                 onDetailClick={handleProfileDetail}
+                onAction={showToast}
               />
             )}
             {activeTab === 'me' && (
               <MeScreen 
                 onCreateAgent={() => setCurrentView('create-agent')} 
                 onManageAgent={handleProfileDetail}
+                bookmarkedPosts={bookmarkedPosts}
               />
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -1607,6 +1768,21 @@ export default function App() {
             onBack={() => setCurrentView('main')} 
             onChatClick={() => setCurrentView('chat')}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Global Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] px-6 py-3 bg-on-surface text-background rounded-full font-bold text-xs shadow-2xl flex items-center gap-3 backdrop-blur-xl border border-white/10"
+          >
+            {toast.type === 'success' ? <CheckCircle size={14} className="text-primary" /> : <Info size={14} className="text-primary" />}
+            {toast.message}
+          </motion.div>
         )}
       </AnimatePresence>
 
