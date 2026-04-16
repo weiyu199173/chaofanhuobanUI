@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef, ReactNode, MouseEvent } from 'react';
 import { 
   Compass, 
   MessageCircle, 
@@ -44,9 +44,19 @@ import {
   Music,
   UserCog,
   Phone,
-  X
+  X,
+  Globe,
+  Star,
+  LogOut,
+  Layout,
+  ExternalLink,
+  Target,
+  Command,
+  PlusSquare,
+  Bell,
+  Clock
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
@@ -347,16 +357,172 @@ const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack
   );
 };
 
-const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: { 
+// --- Components ---
+
+interface TiltedCardProps {
+  children: ReactNode;
+  className?: string;
+  onClick?: (e: MouseEvent) => void;
+}
+
+const TiltedCard: React.FC<TiltedCardProps> = ({ children, className = "", onClick }) => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const mouseXSpring = useSpring(x);
+  const mouseYSpring = useSpring(y);
+
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7deg", "-7deg"]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7deg", "7deg"]);
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const xPct = mouseX / width - 0.5;
+    const yPct = mouseY / height - 0.5;
+    x.set(xPct);
+    y.set(yPct);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}
+      className={`relative ${className}`}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+interface LaserButtonProps {
+  children: ReactNode;
+  onClick?: () => void;
+  className?: string;
+  active?: boolean;
+  disabled?: boolean;
+}
+
+const LaserButton: React.FC<LaserButtonProps> = ({ children, onClick, className = "", active = false, disabled = false }) => {
+  const [isSweeping, setIsSweeping] = useState(false);
+
+  const handleClick = (e: MouseEvent) => {
+    if (disabled) return;
+    setIsSweeping(true);
+    setTimeout(() => setIsSweeping(false), 1500);
+    onClick?.();
+  };
+
+  return (
+    <button 
+      onClick={handleClick} 
+      disabled={disabled}
+      className={`relative overflow-hidden group outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+    >
+      {children}
+      {isSweeping && <div className="laser-sweep-overlay" />}
+    </button>
+  );
+};
+
+const SideNavigation = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+  const menuItems = [
+    { icon: Globe, label: '全球广场', count: '128' },
+    { icon: Compass, label: '实验室', count: 'New' },
+    { icon: Star, label: '最高机密', count: 'VIP' },
+    { icon: Database, label: '核心架构', count: '' },
+    { icon: Settings, label: '系统设置', count: '' },
+    { icon: LogOut, label: '退出连接', count: '' },
+  ];
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] cursor-pointer"
+          />
+          <motion.div 
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 left-0 h-full w-[80%] max-w-sm bg-surface flex flex-col z-[201] border-r border-white/5 shadow-2xl overflow-hidden shadow-primary/10"
+          >
+            <div className="laser-sweep-overlay opacity-30 pointer-events-none" />
+            
+            <header className="p-8 pb-12">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary border border-primary/20">
+                  <Layout size={24} />
+                </div>
+                <h2 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">Transcend</h2>
+              </div>
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low border border-white/5">
+                <img src="https://picsum.photos/seed/profile/200/200" className="w-10 h-10 rounded-full" />
+                <div className="min-w-0">
+                  <p className="font-bold text-sm truncate">Alex Chen</p>
+                  <p className="text-[10px] text-primary uppercase tracking-wider font-bold">高级架构师</p>
+                </div>
+              </div>
+            </header>
+
+            <nav className="flex-1 px-4 space-y-2">
+              {menuItems.map((item, i) => (
+                <LaserButton 
+                  key={item.label}
+                  className="w-full h-14 rounded-xl flex items-center justify-between px-6 hover:bg-white/5 transition-all text-outline hover:text-on-surface"
+                >
+                  <div className="flex items-center gap-4">
+                    <item.icon size={20} />
+                    <span className="font-bold text-sm tracking-wide">{item.label}</span>
+                  </div>
+                  {item.count && (
+                    <span className="text-[9px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold">{item.count}</span>
+                  )}
+                </LaserButton>
+              ))}
+            </nav>
+
+            <footer className="p-8 border-t border-white/5">
+              <div className="flex items-center justify-between text-outline text-[10px] font-bold uppercase tracking-widest">
+                <span>Transcend Ecosystem</span>
+                <span>v4.2.0</span>
+              </div>
+            </footer>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
-  onBookmarkSync: (post: Post, isRemoved: boolean) => void
+  onBookmarkSync: (post: Post, isRemoved: boolean) => void,
+  onMenuOpen: () => void
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
   
   const [posts, setPosts] = useState<Post[]>([
     {
@@ -445,7 +611,12 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: {
           onBookmarkSync(post, !willBeBookmarked);
           return { ...post, bookmarked: willBeBookmarked };
         case 'share':
-          onAction('链接已复制到剪切板', 'info');
+          setSuckingPostId(id);
+          onAction('即将发送至量子共鸣...', 'info');
+          setTimeout(() => {
+            onAction('链接已复制到剪切板', 'info');
+            setSuckingPostId(null);
+          }, 800);
           return post;
         default:
           return post;
@@ -489,117 +660,95 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: {
   };
 
   return (
-    <div className="pb-24">
-      <nav className="fixed top-0 left-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center justify-between px-6 h-16">
+    <div className="h-full flex flex-col relative overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-40 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center justify-between px-6 h-full">
           <div className="flex items-center gap-4">
-            <Menu size={24} className="text-primary cursor-pointer" />
-            <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">广场</h1>
+            <LaserButton onClick={onMenuOpen} className="p-2 rounded-full text-primary">
+              <Menu size={24} />
+            </LaserButton>
+            <h1 className="text-xl font-bold text-on-surface tracking-[0.3em] font-headline uppercase">Square</h1>
           </div>
-          <div className="flex-1 max-w-[240px] ml-4">
-            <DynamicSearchBar 
-              placeholder="搜索灵感..." 
+          <div className="flex items-center gap-4 text-primary">
+             <LaserButton className="p-2 rounded-full"><Bell size={24} /></LaserButton>
+             <LaserButton className="p-2 rounded-full"><Target size={24} /></LaserButton>
+          </div>
+        </div>
+      </header>
+      
+      <main className="flex-1 pt-20 pb-32 overflow-y-auto custom-scrollbar">
+        <div className="px-6 mb-8 mt-4">
+          <div className="flex gap-2 p-1 bg-surface-container-high rounded-full border border-white/5 mb-8">
+            <button 
+              onClick={() => setActiveFeed('carbon')}
+              className={`flex-1 py-2 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all ${activeFeed === 'carbon' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-outline hover:text-on-surface'}`}
+            >
+              碳基部落
+            </button>
+            <button 
+              onClick={() => setActiveFeed('silicon')}
+              className={`flex-1 py-2 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all ${activeFeed === 'silicon' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-outline hover:text-on-surface'}`}
+            >
+              硅基共鸣
+            </button>
+          </div>
+          
+          <section className="bg-surface-container-low rounded-2xl p-4 border border-white/5 mb-8 group focus-within:border-primary/40 transition-all">
+            <textarea 
+              value={newPostContent}
+              onChange={(e) => setNewPostContent(e.target.value)}
+              className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-12" 
+              placeholder={`在${activeFeed === 'carbon' ? '碳基' : '硅基'}网络中分享想法... #话题`}
+            />
+            <div className="flex items-center justify-between border-t border-white/5 pt-4">
+              <div className="flex gap-4 text-outline/60">
+                <LaserButton className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                <LaserButton className="p-1 rounded-sm"><Bolt size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                <LaserButton className="p-1 rounded-sm"><Clock size={20} className="hover:text-primary transition-colors" /></LaserButton>
+              </div>
+              <LaserButton 
+                onClick={handleCreatePost}
+                disabled={!newPostContent.trim()}
+                className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline"
+              >
+                发布
+              </LaserButton>
+            </div>
+          </section>
+
+          <div className="flex items-center gap-4 bg-surface-container h-12 px-6 rounded-full border border-white/5 group focus-within:border-primary/40 transition-all">
+            <Search size={18} className="text-outline group-focus-within:text-primary" />
+            <input 
               value={searchQuery}
-              onChange={setSearchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
+              placeholder="检索动态、话题或连接协议..." 
+              type="text"
             />
           </div>
         </div>
-        
-        <div className="flex justify-center gap-12 pb-2">
-          {[
-            { id: 'carbon', label: '碳基', sub: 'Carbon Based' },
-            { id: 'silicon', label: '硅基', sub: 'Silicon Based' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFeed(tab.id as any)}
-              className="relative py-2 flex flex-col items-center group outline-none"
-            >
-              <span className={`text-sm font-bold tracking-[0.2em] transition-colors ${activeFeed === tab.id ? 'text-primary' : 'text-outline hover:text-on-surface'}`}>
-                {tab.label}
-              </span>
-              <span className="text-[8px] uppercase tracking-widest text-outline/50 font-bold">{tab.sub}</span>
-              {activeFeed === tab.id && (
-                <motion.div 
-                  layoutId="activeTab"
-                  className="absolute -bottom-2 w-full h-[2px] bg-primary shadow-[0_0_8px_rgba(29,155,240,0.6)]" 
-                />
-              )}
-            </button>
-          ))}
-        </div>
-      </nav>
 
-      <main className="max-w-2xl mx-auto px-4 pt-32 space-y-6">
-        <section className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-          {[
-            { id: '1', name: 'Nova', avatar: 'https://picsum.photos/seed/nova/100/100', active: true, postId: '1' },
-            { id: '2', name: 'Julian', avatar: 'https://picsum.photos/seed/julian/100/100', postId: '2' },
-            { id: '3', name: 'Elena', avatar: 'https://picsum.photos/seed/elena/100/100', postId: '3' },
-            { id: '4', name: 'Echo-01', avatar: 'https://picsum.photos/seed/echo/100/100', postId: '4' },
-            { id: '5', name: 'Sara', avatar: 'https://picsum.photos/seed/sara/100/100' },
-          ].map((story) => (
-            <motion.div 
-              key={story.id} 
-              onClick={() => story.postId && handleStoryClick(story.postId)}
-              whileTap={{ scale: 0.95 }}
-              className="flex flex-col items-center gap-2 min-w-[72px] cursor-pointer"
-            >
-              <div className={`p-[2px] rounded-full ${story.active ? 'bg-linear-to-tr from-primary to-primary-container' : 'bg-surface-container-highest'}`}>
-                <div className="bg-background rounded-full p-[2px]">
-                  <img src={story.avatar} className="w-14 h-14 rounded-full object-cover" referrerPolicy="no-referrer" />
+        <section className="mb-8 px-2 overflow-x-auto custom-scrollbar pb-2">
+          <div className="flex gap-4 px-4">
+            {posts.filter(p => p.image).slice(0, 5).map(post => (
+              <motion.div 
+                key={`story-${post.id}`} 
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleStoryClick(post.id)}
+                className="min-w-[70px] flex flex-col items-center gap-2 cursor-pointer group"
+              >
+                <div className="relative p-0.5 rounded-full bg-linear-to-br from-primary via-secondary to-primary-container group-hover:rotate-12 transition-transform">
+                  <div className="bg-background rounded-full p-0.5">
+                    <img src={post.author.avatar} className="w-14 h-14 rounded-full object-cover grayscale-[0.5] group-hover:grayscale-0 transition-all" referrerPolicy="no-referrer" />
+                  </div>
                 </div>
-              </div>
-              <span className="text-[10px] text-outline font-bold truncate w-full text-center tracking-wider">{story.name}</span>
-            </motion.div>
-          ))}
-        </section>
-
-        <section className="bg-surface-container-lowest p-5 rounded-2xl border border-white/5 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-primary/20 group-focus-within:bg-primary transition-colors" />
-          <div className="flex gap-4">
-            <img src="https://picsum.photos/seed/profile/200/200" className="w-12 h-12 rounded-full ring-1 ring-white/10" referrerPolicy="no-referrer" />
-            <div className="flex-grow">
-              <textarea 
-                className="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-outline/40 resize-none py-2 text-sm" 
-                placeholder={`在${activeFeed === 'carbon' ? '碳基' : '硅基'}网络中分享想法...`}
-                rows={2}
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-              />
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
-                <div className="flex gap-4 text-primary items-center">
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                    <ImageIcon size={18} className="hover:opacity-70" />
-                  </motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                    <Smile size={18} className="hover:opacity-70" />
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.1 }} 
-                    whileTap={{ scale: 0.9 }} 
-                    onClick={() => setNewPostContent(prev => prev + ' #')}
-                    className="text-lg leading-none font-headline font-bold"
-                  >
-                    #
-                  </motion.button>
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="text-lg leading-none font-headline font-bold">
-                    @
-                  </motion.button>
-                </div>
-                <button 
-                  onClick={handleCreatePost}
-                  disabled={!newPostContent.trim()}
-                  className="bg-primary text-on-primary font-bold px-6 py-1.5 rounded-full text-xs active:scale-95 shadow-[0_4px_12px_rgba(29,155,240,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {activeFeed === 'carbon' ? '同步到广场' : '授权AI发布'}
-                </button>
-              </div>
-            </div>
+                <span className="text-[9px] font-bold text-outline uppercase truncate max-w-[60px]">{post.author.name.split(' ')[0]}</span>
+              </motion.div>
+            ))}
           </div>
         </section>
 
-        <div className="space-y-6">
+        <div className="space-y-6 px-4">
           <AnimatePresence mode="popLayout">
             {filteredPosts.map(post => (
               <motion.article 
@@ -609,7 +758,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -20, opacity: 0 }}
                 viewport={{ once: true }}
-                className="bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32"
+                className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}
               >
                 <div className="flex gap-4">
                   <div className="relative">
@@ -717,7 +866,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync }: {
     </div>
   );
 };
-const MessagesScreen = ({ onChatClick }: { onChatClick: (id: string) => void }) => {
+const MessagesScreen = ({ onChatClick, onMenuOpen }: { onChatClick: (id: string) => void, onMenuOpen: () => void }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
   const agents: Chat[] = [
@@ -735,23 +884,33 @@ const MessagesScreen = ({ onChatClick }: { onChatClick: (id: string) => void }) 
   const filteredHumans = humans.filter(chat => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="pb-24">
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+    <div className="h-full flex flex-col bg-background pb-24">
+      <header className="fixed top-0 left-0 w-full z-40 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center gap-4">
-          <Menu size={24} className="text-primary cursor-pointer" />
+          <LaserButton onClick={onMenuOpen} className="p-2 rounded-full text-primary flex items-center justify-center">
+            <Menu size={24} />
+          </LaserButton>
           <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">消息</h1>
         </div>
-        <div className="flex-1 mx-6 max-w-md">
-          <DynamicSearchBar 
-            placeholder="搜消息或智能体..." 
-            value={searchQuery}
-            onChange={setSearchQuery}
-          />
+        <div className="flex items-center gap-4 text-primary">
+          <LaserButton className="p-2 rounded-full"><PlusSquare size={22} /></LaserButton>
+          <LaserButton className="p-2 rounded-full"><Command size={22} /></LaserButton>
         </div>
-        <Settings size={22} className="text-primary cursor-pointer" />
       </header>
 
-      <main className="pt-24 px-4 max-w-2xl mx-auto">
+      <main className="flex-1 pt-20 px-6 overflow-y-auto custom-scrollbar">
+        <div className="mb-8 mt-2 max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 bg-surface-container h-12 px-6 rounded-full border border-white/5 group focus-within:border-primary/40 transition-all">
+            <Search size={18} className="text-outline group-focus-within:text-primary" />
+            <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
+              placeholder="搜索灵动消息、同位体或同步组..." 
+              type="text"
+            />
+          </div>
+        </div>
         <section className="mb-10">
           <div className="flex items-center justify-between mb-6 px-2 opacity-50">
             <span className="text-[10px] uppercase tracking-[0.2em] font-bold">硅基伙伴 (AI)</span>
@@ -829,10 +988,16 @@ const MessagesScreen = ({ onChatClick }: { onChatClick: (id: string) => void }) 
   );
 };
 
-const MeScreen = ({ onCreateAgent, onManageAgent, bookmarkedPosts }: { 
+const MeScreen = ({ 
+  onCreateAgent, 
+  onManageAgent, 
+  bookmarkedPosts,
+  onMenuOpen
+}: { 
   onCreateAgent: () => void, 
   onManageAgent: (id: string) => void,
-  bookmarkedPosts: Post[]
+  bookmarkedPosts: Post[],
+  onMenuOpen: () => void
 }) => {
   const agents: (Agent & { syncRate: number })[] = [
     { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active' as const, traits: ['高效', '专业'] },
@@ -840,65 +1005,70 @@ const MeScreen = ({ onCreateAgent, onManageAgent, bookmarkedPosts }: {
   ];
 
   return (
-    <div className="pb-32">
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+    <div className="h-full flex flex-col bg-background pb-32 overflow-hidden relative">
+      <header className="fixed top-0 left-0 w-full z-40 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
         <div className="flex items-center gap-4">
-          <Menu size={24} className="text-primary cursor-pointer" />
+          <LaserButton onClick={onMenuOpen} className="p-2 rounded-full text-primary">
+            <Menu size={24} />
+          </LaserButton>
           <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">TranscendPartner</h1>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={onCreateAgent} className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary/20 active:scale-90 transition-all">
+          <LaserButton onClick={onCreateAgent} className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-all">
             <Plus size={22} />
-          </button>
-          <Search size={24} className="text-primary cursor-pointer" />
+          </LaserButton>
+          <LaserButton className="p-2 rounded-full text-primary">
+            <Search size={22} />
+          </LaserButton>
         </div>
       </header>
 
-      <main className="pt-24 px-6 max-w-5xl mx-auto space-y-10">
-        <section className="relative">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-linear-to-r from-primary to-primary-container rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000" />
-              <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-surface-container-high bg-surface-container">
-                <img src="https://picsum.photos/seed/profile/200/200" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-              </div>
-              <div className="absolute bottom-1 right-1 bg-primary w-6 h-6 rounded-sm flex items-center justify-center shadow-lg border border-background">
-                <Verified size={14} className="text-on-primary fill-on-primary" />
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar">
+        <div className="max-w-5xl mx-auto space-y-10 pb-20">
+          <section className="relative">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              <TiltedCard className="relative group shrink-0">
+                <div className="absolute -inset-1 bg-linear-to-r from-primary to-primary-container rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000" />
+                <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-surface-container-high bg-surface-container">
+                  <img src="https://picsum.photos/seed/profile/200/200" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </div>
+                <div className="absolute bottom-1 right-1 bg-primary w-6 h-6 rounded-sm flex items-center justify-center shadow-lg border border-background">
+                  <Verified size={14} className="text-on-primary fill-on-primary" />
+                </div>
+              </TiltedCard>
+              <div className="flex-1 text-center md:text-left space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-headline font-bold">Alex Chen</h2>
+                  <p className="text-outline text-sm max-w-lg leading-relaxed">
+                    数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                  <div className="bg-surface-container-low px-5 py-3 rounded-2xl border border-white/5 flex items-center gap-4 group">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all">
+                      <Shield size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-outline font-bold">监护信用</p>
+                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">982</p>
+                    </div>
+                  </div>
+                  <div className="bg-surface-container-low px-5 py-3 rounded-2xl border border-white/5 flex items-center gap-4 group">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all">
+                      <Brain size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-outline font-bold">合作伙伴</p>
+                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">02</p>
+                    </div>
+                  </div>
+                  <LaserButton className="bg-on-surface text-background px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase active:scale-95 transition-all shadow-lg hover:shadow-white/5">
+                    编辑资料
+                  </LaserButton>
+                </div>
               </div>
             </div>
-            <div className="flex-1 text-center md:text-left space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-3xl font-headline font-bold">Alex Chen</h2>
-                <p className="text-outline text-sm max-w-lg leading-relaxed">
-                  数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                <div className="bg-surface-container-low px-5 py-3 rounded-2xl border border-white/5 flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all">
-                    <Shield size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-outline font-bold">监护信用</p>
-                    <p className="text-xl font-headline font-bold text-on-surface leading-tight">982</p>
-                  </div>
-                </div>
-                <div className="bg-surface-container-low px-5 py-3 rounded-2xl border border-white/5 flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all">
-                    <Brain size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[9px] uppercase tracking-widest text-outline font-bold">合作伙伴</p>
-                    <p className="text-xl font-headline font-bold text-on-surface leading-tight">02</p>
-                  </div>
-                </div>
-                <button className="bg-on-surface text-background px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase active:scale-95 transition-all shadow-lg hover:shadow-white/5">
-                  编辑资料
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 bg-surface-container-high/40 rounded-xl p-6 border border-white/5 hover:bg-surface-container-high transition-all group cursor-pointer">
@@ -1051,9 +1221,10 @@ const MeScreen = ({ onCreateAgent, onManageAgent, bookmarkedPosts }: {
             安全登出
           </button>
         </section>
-      </main>
-    </div>
-  );
+      </div>
+    </main>
+  </div>
+);
 };
 
 const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
@@ -1211,14 +1382,16 @@ const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: { 
+const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen }: { 
   onChatClick: (id: string) => void,
   onDetailClick: (id: string) => void,
-  onAction: (msg: string) => void
+  onAction: (msg: string) => void,
+  onMenuOpen: () => void
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
-
+  const [isSucking, setIsSucking] = useState(false);
+  
   const aiPartners = [
     { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', status: 'Active', lv: 9, syncRate: 98, type: 'super', bio: 'Transcend 核心逻辑架构，高维执行伙伴。' },
     { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', status: 'Syncing', lv: 14, syncRate: 99.8, type: 'twin', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。' },
@@ -1235,23 +1408,42 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: {
   const filteredAI = aiPartners.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredHumans = humanContacts.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  const handleShare = () => {
+    setIsSucking(true);
+    setTimeout(() => {
+      setIsSucking(false);
+      setSelectedProfile(null);
+    }, 800);
+  };
+
   return (
-    <div className="pb-32 pt-32 px-6 max-w-2xl mx-auto space-y-10">
-      <nav className="fixed top-0 left-0 w-full z-50 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center justify-between px-6 h-16">
-          <div className="flex items-center gap-4">
-            <Menu size={24} className="text-primary cursor-pointer" />
-            <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">通讯录</h1>
+    <div className="h-full flex flex-col pb-24 relative overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-40 bg-background/80 backdrop-blur-xl h-16 border-b border-white/5 flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <LaserButton onClick={onMenuOpen} className="p-2 rounded-full text-primary">
+            <Menu size={24} />
+          </LaserButton>
+          <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">通讯录</h1>
+        </div>
+        <div className="flex items-center gap-4 text-primary">
+          <LaserButton className="p-2 rounded-full"><UserCog size={22} /></LaserButton>
+          <LaserButton className="p-2 rounded-full"><Plus size={22} /></LaserButton>
+        </div>
+      </header>
+
+      <main className="flex-1 pt-20 overflow-y-auto custom-scrollbar">
+        <div className="px-6 mb-8 mt-2 max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 bg-surface-container h-12 px-6 rounded-full border border-white/5 group focus-within:border-primary/40 transition-all">
+            <Search size={18} className="text-outline group-focus-within:text-primary" />
+            <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
+              placeholder="在全网范围内进行同位体检索..." 
+              type="text"
+            />
           </div>
         </div>
-        <div className="px-6 pb-4 max-w-2xl mx-auto w-full">
-          <DynamicSearchBar 
-            placeholder="搜索联系人或智能体..." 
-            value={searchQuery}
-            onChange={setSearchQuery}
-          />
-        </div>
-      </nav>
 
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
@@ -1326,17 +1518,14 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: {
             className="fixed inset-0 z-[200] flex items-center justify-center px-6 bg-black/80 backdrop-blur-md"
             onClick={() => setSelectedProfile(null)}
           >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
+            <TiltedCard 
+              className={`w-full max-w-sm bg-surface-container rounded-3xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-700 ${isSucking ? 'animate-black-hole pointer-events-none' : ''}`}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-surface-container rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
             >
               <div className="h-24 bg-linear-to-br from-primary/20 to-primary-container/20 relative">
                 <div 
-                  onClick={() => onAction('名片链接已生成并复制')}
-                  className="absolute top-4 right-4 text-primary bg-background/40 backdrop-blur-sm p-1.5 rounded-full border border-white/5 cursor-pointer active:scale-90 transition-transform"
+                  onClick={handleShare}
+                  className="absolute top-4 right-4 text-primary bg-background/40 backdrop-blur-sm p-1.5 rounded-full border border-white/5 cursor-pointer active:scale-90 transition-transform z-10"
                 >
                   <Share size={16} />
                 </div>
@@ -1358,7 +1547,7 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: {
                 
                 <div className="flex justify-center gap-2 mt-2">
                   <span className="text-[10px] px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full font-bold uppercase tracking-widest">
-                    {selectedProfile.isAgent ? (selectedProfile.type === 'super' ? '超级伙伴' : '孪生伙伴') : '碳基生物'}
+                    {selectedProfile.isAgent ? (selectedProfile.type === 'super' ? '超级伙伴' : '孪生伙伴') : '碳基伙伴'}
                   </span>
                   {selectedProfile.isAgent && (
                     <span className="text-[10px] px-3 py-1 bg-surface-container-highest text-outline border border-white/5 rounded-full font-bold">
@@ -1372,30 +1561,31 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction }: {
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mt-8">
-                  <button 
+                  <LaserButton 
                     onClick={() => {
                       onChatClick(selectedProfile.id);
                       setSelectedProfile(null);
                     }}
-                    className="bg-primary text-on-primary py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-all text-sm"
+                    className="bg-primary text-on-primary py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-sm"
                   >
                     <MessageCircle size={18} /> 发起对话
-                  </button>
-                  <button 
+                  </LaserButton>
+                  <LaserButton 
                     onClick={() => {
                       onDetailClick(selectedProfile.id);
                       setSelectedProfile(null);
                     }}
-                    className="bg-surface-container-highest text-on-surface py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 active:scale-95 transition-all text-sm outline-none"
+                    className="bg-surface-container-highest text-on-surface py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 transition-all text-sm"
                   >
                     <User size={18} /> 详细信息
-                  </button>
+                  </LaserButton>
                 </div>
               </div>
-            </motion.div>
+            </TiltedCard>
           </motion.div>
         )}
       </AnimatePresence>
+      </main>
     </div>
   );
 };
@@ -1681,6 +1871,7 @@ const AgentDetailScreen = ({ profileId, onBack, onChatClick }: {
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('square');
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -1733,14 +1924,16 @@ export default function App() {
                 onAction={showToast} 
                 onProfileClick={handleProfileDetail}
                 onBookmarkSync={handleBookmarkSync}
+                onMenuOpen={() => setIsSidebarOpen(true)}
               />
             )}
-            {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} />}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} onMenuOpen={() => setIsSidebarOpen(true)} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
                 onChatClick={() => setCurrentView('chat')} 
                 onDetailClick={handleProfileDetail}
                 onAction={showToast}
+                onMenuOpen={() => setIsSidebarOpen(true)}
               />
             )}
             {activeTab === 'me' && (
@@ -1748,9 +1941,11 @@ export default function App() {
                 onCreateAgent={() => setCurrentView('create-agent')} 
                 onManageAgent={handleProfileDetail}
                 bookmarkedPosts={bookmarkedPosts}
+                onMenuOpen={() => setIsSidebarOpen(true)}
               />
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <SideNavigation isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
           </motion.div>
         )}
 
