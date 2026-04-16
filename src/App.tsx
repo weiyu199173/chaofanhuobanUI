@@ -54,13 +54,17 @@ import {
   Command,
   PlusSquare,
   Bell,
-  Clock
+  Clock,
+  QrCode,
+  MapPin,
+  Camera,
+  ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
-type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile';
+type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile';
 
 interface Post {
   id: string;
@@ -435,14 +439,14 @@ const LaserButton: React.FC<LaserButtonProps> = ({ children, onClick, className 
   );
 };
 
-const SideNavigation = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+const SideNavigation = ({ isOpen, onClose, onLogout, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, userProfile: any }) => {
   const menuItems = [
     { icon: Globe, label: '全球广场', count: '128' },
     { icon: Compass, label: '实验室', count: 'New' },
     { icon: Star, label: '最高机密', count: 'VIP' },
     { icon: Database, label: '核心架构', count: '' },
     { icon: Settings, label: '系统设置', count: '' },
-    { icon: LogOut, label: '退出连接', count: '' },
+    { icon: LogOut, label: '安全登出', count: '', action: onLogout },
   ];
 
   return (
@@ -473,9 +477,9 @@ const SideNavigation = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
                 <h2 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">Transcend</h2>
               </div>
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low border border-white/5">
-                <img src="https://picsum.photos/seed/profile/200/200" className="w-10 h-10 rounded-full" />
+                <img src={userProfile.avatar} className="w-10 h-10 rounded-full object-cover" />
                 <div className="min-w-0">
-                  <p className="font-bold text-sm truncate">Alex Chen</p>
+                  <p className="font-bold text-sm truncate">{userProfile.nickname}</p>
                   <p className="text-[10px] text-primary uppercase tracking-wider font-bold">高级架构师</p>
                 </div>
               </div>
@@ -485,11 +489,17 @@ const SideNavigation = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
               {menuItems.map((item, i) => (
                 <LaserButton 
                   key={item.label}
+                  onClick={() => {
+                    if (item.action) {
+                      item.action();
+                    }
+                    onClose();
+                  }}
                   className="w-full h-14 rounded-xl flex items-center justify-between px-6 hover:bg-white/5 transition-all text-outline hover:text-on-surface"
                 >
                   <div className="flex items-center gap-4">
-                    <item.icon size={20} />
-                    <span className="font-bold text-sm tracking-wide">{item.label}</span>
+                    <item.icon size={20} className={item.icon === LogOut ? 'text-error' : ''} />
+                    <span className={`font-bold text-sm tracking-wide ${item.icon === LogOut ? 'text-error' : ''}`}>{item.label}</span>
                   </div>
                   {item.count && (
                     <span className="text-[9px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded font-bold">{item.count}</span>
@@ -991,19 +1001,22 @@ const MessagesScreen = ({ onChatClick, onMenuOpen }: { onChatClick: (id: string)
 const MeScreen = ({ 
   onCreateAgent, 
   onManageAgent, 
+  onEditProfile,
+  onMyMoments,
   bookmarkedPosts,
-  onMenuOpen
+  onMenuOpen,
+  userProfile,
+  agents
 }: { 
   onCreateAgent: () => void, 
   onManageAgent: (id: string) => void,
+  onEditProfile: () => void,
+  onMyMoments: () => void,
   bookmarkedPosts: Post[],
-  onMenuOpen: () => void
+  onMenuOpen: () => void,
+  userProfile: any,
+  agents: any[]
 }) => {
-  const agents: (Agent & { syncRate: number })[] = [
-    { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active' as const, traits: ['高效', '专业'] },
-    { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', syncRate: 99.8, status: 'active' as const, traits: ['温文尔雅'] },
-  ];
-
   return (
     <div className="h-full flex flex-col bg-background pb-32 overflow-hidden relative">
       <header className="fixed top-0 left-0 w-full z-40 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
@@ -1030,7 +1043,7 @@ const MeScreen = ({
               <TiltedCard className="relative group shrink-0">
                 <div className="absolute -inset-1 bg-linear-to-r from-primary to-primary-container rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000" />
                 <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-surface-container-high bg-surface-container">
-                  <img src="https://picsum.photos/seed/profile/200/200" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={userProfile.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <div className="absolute bottom-1 right-1 bg-primary w-6 h-6 rounded-sm flex items-center justify-center shadow-lg border border-background">
                   <Verified size={14} className="text-on-primary fill-on-primary" />
@@ -1038,9 +1051,9 @@ const MeScreen = ({
               </TiltedCard>
               <div className="flex-1 text-center md:text-left space-y-4">
                 <div className="space-y-1">
-                  <h2 className="text-3xl font-headline font-bold">Alex Chen</h2>
+                  <h2 className="text-3xl font-headline font-bold">{userProfile.nickname}</h2>
                   <p className="text-outline text-sm max-w-lg leading-relaxed">
-                    数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。
+                    {userProfile.bio}
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-center md:justify-start gap-4">
@@ -1059,10 +1072,10 @@ const MeScreen = ({
                     </div>
                     <div>
                       <p className="text-[9px] uppercase tracking-widest text-outline font-bold">合作伙伴</p>
-                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">02</p>
+                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">{agents.length.toString().padStart(2, '0')}</p>
                     </div>
                   </div>
-                  <LaserButton className="bg-on-surface text-background px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase active:scale-95 transition-all shadow-lg hover:shadow-white/5">
+                  <LaserButton onClick={onEditProfile} className="bg-on-surface text-background px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase active:scale-95 transition-all shadow-lg hover:shadow-white/5">
                     编辑资料
                   </LaserButton>
                 </div>
@@ -1071,7 +1084,7 @@ const MeScreen = ({
           </section>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 bg-surface-container-high/40 rounded-xl p-6 border border-white/5 hover:bg-surface-container-high transition-all group cursor-pointer">
+          <div onClick={onMyMoments} className="md:col-span-2 bg-surface-container-high/40 rounded-xl p-6 border border-white/5 hover:bg-surface-container-high transition-all group cursor-pointer">
             <div className="flex justify-between items-start mb-8">
               <h3 className="text-xl font-headline font-semibold flex items-center gap-2">
                 <Sparkles size={20} className="text-primary" />
@@ -1214,12 +1227,6 @@ const MeScreen = ({
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="pb-12 px-2">
-          <button className="w-full py-4 text-error font-bold tracking-widest text-sm uppercase hover:bg-error/5 rounded-xl transition-all border border-error/20 active:scale-[0.98]">
-            安全登出
-          </button>
         </section>
       </div>
     </main>
@@ -1868,6 +1875,199 @@ const AgentDetailScreen = ({ profileId, onBack, onChatClick }: {
   );
 };
 
+const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
+  onBack: () => void;
+  profile: any;
+  onSave: (data: any) => void;
+  isAgent?: boolean;
+}) => {
+  const [formData, setFormData] = useState(profile);
+
+  return (
+    <motion.div 
+      initial={{ x: '100%' }} 
+      animate={{ x: 0 }} 
+      exit={{ x: '100%' }}
+      className="fixed inset-0 z-[110] bg-background flex flex-col"
+    >
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest">{isAgent ? '编辑 Agent 资料' : '编辑个人资料'}</h1>
+        </div>
+        <button onClick={() => { onSave(formData); onBack(); }} className="text-primary font-bold tracking-widest text-sm uppercase px-4 py-2 hover:bg-primary/5 rounded-lg transition-all">
+          保存
+        </button>
+      </header>
+
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar">
+        <div className="max-w-2xl mx-auto space-y-10 pb-20">
+           <div className="flex flex-col items-center gap-4">
+             <div className="relative group">
+                <img src={formData.avatar} className="w-28 h-28 rounded-3xl object-cover border-2 border-white/10" />
+                <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer">
+                  <Camera size={24} className="text-white" />
+                </div>
+             </div>
+             <p className="text-[10px] uppercase font-bold tracking-widest text-outline">更换头像</p>
+           </div>
+
+           <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">昵称 / NICKNAME</label>
+                <input 
+                  type="text" 
+                  value={isAgent ? formData.name : formData.nickname}
+                  onChange={(e) => isAgent ? setFormData({...formData, name: e.target.value}) : setFormData({...formData, nickname: e.target.value})}
+                  className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl px-5 py-4 text-sm font-medium transition-all"
+                />
+              </div>
+
+              {!isAgent && (
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">性别 / GENDER</label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {['男', '女', '其他'].map(g => (
+                      <button 
+                        key={g}
+                        onClick={() => setFormData({...formData, gender: g})}
+                        className={`py-3 rounded-xl font-bold text-xs tracking-widest transition-all border ${formData.gender === g ? 'bg-primary text-on-primary border-primary' : 'bg-surface-container-high text-outline border-white/5'}`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">{isAgent ? '简介 / BIO' : '个人简介 / BIO'}</label>
+                <textarea 
+                  rows={4}
+                  value={isAgent ? formData.bio : formData.bio}
+                  onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                  className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl px-5 py-4 text-sm font-medium transition-all resize-none"
+                />
+              </div>
+
+              {!isAgent && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">联系电话 / PHONE</label>
+                    <div className="relative">
+                      <Phone size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-outline" />
+                      <input 
+                        type="tel" 
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl pl-14 pr-5 py-4 text-sm font-medium transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">地区 / REGION</label>
+                    <div className="relative">
+                      <MapPin size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-outline" />
+                      <input 
+                        type="text" 
+                        value={formData.region}
+                        onChange={(e) => setFormData({...formData, region: e.target.value})}
+                        className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl pl-14 pr-5 py-4 text-sm font-medium transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6 pt-4">
+                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 space-y-2">
+                        <label className="text-[9px] uppercase font-bold tracking-widest text-outline">账号 ID</label>
+                        <p className="font-mono font-bold text-xs tracking-wider">{formData.accountId}</p>
+                    </div>
+                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-high transition-all">
+                        <QrCode size={24} className="text-primary" />
+                        <span className="text-[9px] uppercase font-bold tracking-widest">我的二维码</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {isAgent && (
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">绑定人类信息 / LINKED HUMAN</label>
+                  <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-high border border-white/5">
+                    <img src={formData.linkedHuman?.avatar || "https://picsum.photos/seed/profile/200/200"} className="w-10 h-10 rounded-full" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm truncate">{formData.linkedHuman?.name || 'Alex Chen (Me)'}</p>
+                      <p className="text-[10px] text-outline uppercase tracking-wider font-bold">已验证监护人</p>
+                    </div>
+                    <button className="ml-auto text-primary font-bold text-[10px] uppercase tracking-widest hover:underline">解绑</button>
+                  </div>
+                </div>
+              )}
+           </div>
+        </div>
+      </main>
+    </motion.div>
+  );
+};
+
+const MyMomentsScreen = ({ onBack, moments }: { onBack: () => void, moments: Post[] }) => {
+  return (
+    <motion.div 
+      initial={{ x: '100%' }} 
+      animate={{ x: 0 }} 
+      exit={{ x: '100%' }}
+      className="fixed inset-0 z-[110] bg-background flex flex-col"
+    >
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest">我的动态</h1>
+        </div>
+        <LaserButton className="p-2 rounded-full text-primary">
+           <PlusSquare size={24} />
+        </LaserButton>
+      </header>
+
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar">
+         <div className="max-w-2xl mx-auto space-y-8 pb-32">
+            {moments.length > 0 ? (
+               moments.map(moment => (
+                 <div key={moment.id} className="bg-surface-container-low rounded-3xl p-6 border border-white/5 space-y-4">
+                    <div className="flex justify-between items-start">
+                       <div className="flex items-center gap-3">
+                          <img src={moment.author.avatar} className="w-10 h-10 rounded-xl" />
+                          <div>
+                             <p className="font-bold text-sm">{moment.author.name}</p>
+                             <p className="text-[10px] text-outline uppercase font-bold tracking-widest">{moment.time}</p>
+                          </div>
+                       </div>
+                       <MoreVertical size={18} className="text-outline cursor-pointer" />
+                    </div>
+                    <p className="text-sm font-light leading-relaxed">{moment.content}</p>
+                    {moment.image && (
+                       <div className="aspect-video rounded-2xl overflow-hidden border border-white/5">
+                          <img src={moment.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                       </div>
+                    )}
+                 </div>
+               ))
+            ) : (
+               <div className="flex flex-col items-center justify-center pt-20 text-outline space-y-4 opacity-50">
+                  <Sparkles size={64} strokeWidth={1} />
+                  <p className="text-sm font-bold uppercase tracking-widest">暂无动态记录</p>
+               </div>
+            )}
+         </div>
+      </main>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
@@ -1889,16 +2089,45 @@ export default function App() {
     setToast({ message, type });
   };
 
-  if (!isLoggedIn) {
-    if (currentView === 'register') {
-      return <RegisterScreen onRegister={() => setIsLoggedIn(true)} onBack={() => setCurrentView('login')} />;
-    }
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} onGoToRegister={() => setCurrentView('register')} />;
-  }
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+
+  const [userProfile, setUserProfile] = useState({
+    nickname: 'Alex Chen',
+    avatar: 'https://picsum.photos/seed/profile/200/200',
+    gender: '男',
+    bio: '数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。',
+    phone: '138 8888 0000',
+    accountId: 'Transcend#001',
+    region: '上海，静安'
+  });
+
+  const [agents, setAgents] = useState<(Agent & { bio: string, linkedHuman?: any })[]>([
+    { id: 'a1', name: 'Nexus AI', bio: 'Transcend 核心逻辑架构，高维执行伙伴。', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active', traits: ['高效', '专业'] },
+    { id: 'a2', name: 'Aura', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。', avatar: 'https://picsum.photos/seed/aura/100/100', syncRate: 99.8, status: 'active', traits: ['温文尔雅'] },
+  ]);
+
+  const [posts, setPosts] = useState<Post[]>([
+    { id: 'p1', author: { name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200' }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+    { id: 'p2', author: { name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100' }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
+    { id: 'p3', author: { name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+  ]);
+
+  const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentView('login');
+    setIsSidebarOpen(false);
+  };
 
   const handleProfileDetail = (id: string) => {
     setSelectedProfileId(id);
     setCurrentView('agent-detail');
+  };
+
+  const handleManageAgent = (id: string) => {
+    setEditingAgentId(id);
+    setCurrentView('edit-agent-profile');
   };
 
   const handleBookmarkSync = (post: Post, isRemoved: boolean) => {
@@ -1939,14 +2168,44 @@ export default function App() {
             {activeTab === 'me' && (
               <MeScreen 
                 onCreateAgent={() => setCurrentView('create-agent')} 
-                onManageAgent={handleProfileDetail}
+                onManageAgent={handleManageAgent}
+                onEditProfile={() => setCurrentView('edit-profile')}
+                onMyMoments={() => setCurrentView('my-moments')}
                 bookmarkedPosts={bookmarkedPosts}
                 onMenuOpen={() => setIsSidebarOpen(true)}
+                userProfile={userProfile}
+                agents={agents}
               />
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
-            <SideNavigation isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+            <SideNavigation isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onLogout={handleLogout} userProfile={userProfile} />
           </motion.div>
+        )}
+
+        {currentView === 'edit-profile' && (
+          <EditProfileScreen 
+            onBack={() => setCurrentView('main')}
+            profile={userProfile}
+            onSave={(data) => setUserProfile(data)}
+          />
+        )}
+
+        {currentView === 'edit-agent-profile' && (
+          <EditProfileScreen 
+            onBack={() => setCurrentView('main')}
+            isAgent={true}
+            profile={agents.find(a => a.id === editingAgentId) || agents[0]}
+            onSave={(data) => {
+              setAgents(prev => prev.map(a => a.id === data.id ? data : a));
+            }}
+          />
+        )}
+
+        {currentView === 'my-moments' && (
+          <MyMomentsScreen 
+            onBack={() => setCurrentView('main')}
+            moments={myMoments}
+          />
         )}
 
         {currentView === 'create-agent' && (
