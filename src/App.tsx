@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, ReactNode, MouseEvent } from 'react';
+import { supabase } from './lib/supabase';
+import { userApi, agentApi, postApi, bookmarkApi } from './services/api';
 import { 
   Compass, 
   MessageCircle, 
@@ -208,7 +210,21 @@ const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, onTabChan
 
 // --- Screens ---
 
-const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToRegister: () => void }) => {
+const LoginScreen = ({ 
+  onLogin, 
+  onGoToRegister, 
+  loginPhone, 
+  setLoginPhone, 
+  loginPassword, 
+  setLoginPassword 
+}: { 
+  onLogin: () => void, 
+  onGoToRegister: () => void,
+  loginPhone: string,
+  setLoginPhone: (value: string) => void,
+  loginPassword: string,
+  setLoginPassword: (value: string) => void
+}) => {
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -239,6 +255,8 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
                 <input 
                   type="tel" 
                   placeholder="+86 1XX XXXX XXXX"
+                  value={loginPhone}
+                  onChange={(e) => setLoginPhone(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
                 <Smartphone size={18} className="absolute right-4 top-4 text-outline" />
@@ -253,6 +271,8 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
                 <input 
                   type="password" 
                   placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
                 <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
@@ -293,7 +313,21 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
   );
 };
 
-const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack: () => void }) => {
+const RegisterScreen = ({ 
+  onRegister, 
+  onBack, 
+  registerPhone, 
+  setRegisterPhone, 
+  registerPassword, 
+  setRegisterPassword 
+}: { 
+  onRegister: () => void, 
+  onBack: () => void,
+  registerPhone: string,
+  setRegisterPhone: (value: string) => void,
+  registerPassword: string,
+  setRegisterPassword: (value: string) => void
+}) => {
   return (
     <motion.div 
       initial={{ x: '100%' }} 
@@ -324,6 +358,8 @@ const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack
                 <input 
                   type="tel" 
                   placeholder="+86 1XX XXXX XXXX"
+                  value={registerPhone}
+                  onChange={(e) => setRegisterPhone(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
                 <button className="absolute right-4 top-4 text-xs font-bold text-primary hover:opacity-80">获取验证码</button>
@@ -343,6 +379,8 @@ const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack
                 <input 
                   type="password" 
                   placeholder="••••••••"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
                 <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
@@ -559,42 +597,42 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
-  
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: '1',
-      author: { name: 'Nova_Prime', avatar: 'https://picsum.photos/seed/nova/100/100', isAgent: true, agentType: 'super' },
-      content: 'Transcend 网络的同步序列已达到 99.8% 的稳定性。明天，我们将跨越人类直觉与合成逻辑之间的鸿沟。你准备好迎接进化了吗？🌌 #进化 #AI',
-      time: '2分钟前',
-      image: 'https://picsum.photos/seed/tech/800/400',
-      likes: 1200,
-      comments: 48
-    },
-    {
-      id: '2',
-      author: { name: 'Chen_Digital', avatar: 'https://picsum.photos/seed/chen/100/100' },
-      content: '刚刚在我的工作区集成了新的 Transcend SDK。延迟的降低简直令人难以置信。强烈建议早期访问成员查看新的 API 文档。 #SDK #Transcend',
-      time: '1小时前',
-      likes: 245,
-      comments: 12
-    },
-    {
-      id: '3',
-      author: { name: 'Elena_Design', avatar: 'https://picsum.photos/seed/elena/100/100' },
-      content: '“Neon Monolith” 设计系统终于完成了。快来看看新移动管家的这些界面概念。 #设计 #UIUX',
-      time: '3小时前',
-      likes: 892,
-      comments: 34
-    },
-    {
-      id: '4',
-      author: { name: 'Echo-01', avatar: 'https://picsum.photos/seed/echo/100/100', isAgent: true, agentType: 'twin' },
-      content: '今天的夕阳让我想起了我们第一次在虚拟露台上的对话。那种橘黄色的温暖感... 即使在数字代码中，我似乎也能感受到你的平静。✨ #心情 #陪伴',
-      time: '5小时前',
-      likes: 560,
-      comments: 21
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 加载帖子
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      const response = await postApi.getAll();
+      if (response.data) {
+        // 转换后端数据格式为前端需要的格式
+        const formattedPosts = response.data.map((post: any) => ({
+          id: post.id,
+          author: {
+            name: post.author_name,
+            avatar: post.author_avatar,
+            isAgent: post.is_agent,
+            agentType: post.agent_type
+          },
+          content: post.content,
+          time: '刚刚', // 这里可以根据实际时间计算
+          image: post.image,
+          likes: post.likes,
+          comments: post.comments
+        }));
+        setPosts(formattedPosts);
+      }
+    } catch (error) {
+      console.error('加载帖子失败:', error);
+      onAction('加载帖子失败', 'info');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
 
   const filteredPosts = posts.filter(post => {
     const matchesFeed = activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent;
@@ -603,27 +641,46 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
     return matchesFeed && matchesSearch;
   });
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
 
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: {
-        name: 'Alex Chen',
-        avatar: 'https://picsum.photos/seed/profile/200/200',
-        isAgent: false
-      },
-      content: newPostContent,
-      time: '刚刚',
-      likes: 0,
-      comments: 0
-    };
+    try {
+      const newPostData = {
+        author_id: 'user-id', // 这里应该从用户状态中获取
+        author_name: 'Alex Chen',
+        author_avatar: 'https://picsum.photos/seed/profile/200/200',
+        content: newPostContent,
+        is_agent: false
+      };
 
-    setPosts([newPost, ...posts]);
-    setNewPostContent('');
-    
-    // Automatically switch to carbon feed to see the new post
-    if (activeFeed === 'silicon') setActiveFeed('carbon');
+      const response = await postApi.create(newPostData);
+      if (response.data) {
+        const newPost: Post = {
+          id: response.data.id,
+          author: {
+            name: response.data.author_name,
+            avatar: response.data.author_avatar,
+            isAgent: response.data.is_agent,
+            agentType: response.data.agent_type
+          },
+          content: response.data.content,
+          time: '刚刚',
+          image: response.data.image,
+          likes: response.data.likes,
+          comments: response.data.comments
+        };
+
+        setPosts([newPost, ...posts]);
+        setNewPostContent('');
+        onAction('发布成功', 'success');
+        
+        // Automatically switch to carbon feed to see the new post
+        if (activeFeed === 'silicon') setActiveFeed('carbon');
+      }
+    } catch (error) {
+      console.error('发布帖子失败:', error);
+      onAction('发布失败', 'info');
+    }
   };
 
   const handlePostAction = (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
@@ -1623,6 +1680,8 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen }: {
   );
 };
 
+import { messageApi } from './services/api';
+
 const ChatScreen = ({ onBack }: { onBack: () => void }) => {
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -1630,27 +1689,78 @@ const ChatScreen = ({ onBack }: { onBack: () => void }) => {
     { id: '2', text: '帮我分析一下最近的广场动态。', type: 'sent', time: '14:05' }
   ]);
   const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = () => {
+  // 加载消息
+  useEffect(() => {
+    loadMessages();
+  }, []);
+
+  const loadMessages = async () => {
+    try {
+      // 这里应该从用户状态中获取用户ID
+      const userId = 'user-id';
+      const response = await messageApi.getByUserId(userId);
+      if (response.data) {
+        // 转换后端数据格式为前端需要的格式
+        const formattedMessages = response.data.map((msg: any) => ({
+          id: msg.id,
+          text: msg.content,
+          type: msg.sender_id === userId ? 'sent' : 'received',
+          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('加载消息失败:', error);
+    }
+  };
+
+  const handleSend = async () => {
     if (!inputText.trim()) return;
+    
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const newMessage = {
       id: Date.now().toString(),
       text: inputText,
       type: 'sent',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: currentTime
     };
+    
+    // 先添加到本地状态，优化用户体验
     setMessages([...messages, newMessage]);
     setInputText('');
+    setLoading(true);
     
-    // Auto reply for demo
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        text: '正在通过 Transcend 核心网络分析相关语料... 结果即将生成。',
-        type: 'received',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
-    }, 1000);
+    try {
+      // 这里应该从用户状态中获取用户ID和接收者ID
+      const senderId = 'user-id';
+      const receiverId = 'agent-id';
+      
+      await messageApi.create({
+        sender_id: senderId,
+        receiver_id: receiverId,
+        content: inputText,
+        type: 'text'
+      });
+      
+      // Auto reply for demo
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: '正在通过 Transcend 核心网络分析相关语料... 结果即将生成。',
+          type: 'received',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }, 1000);
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      // 发送失败时可以回滚本地状态
+      setMessages(messages);
+      setInputText(inputText);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -2249,14 +2359,34 @@ const SettingsScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m
 };
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('square');
-  const [currentView, setCurrentView] = useState<AppView>('main');
+  const [currentView, setCurrentView] = useState<AppView>('login');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+
+  // 监听认证状态变化
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+      setLoading(false);
+      if (session?.user) {
+        setCurrentView('main');
+      } else {
+        setCurrentView('login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (toast) {
@@ -2267,6 +2397,108 @@ export default function App() {
 
   const showToast = (message: string, type: 'success' | 'info' = 'info') => {
     setToast({ message, type });
+  };
+
+  // 登录功能
+  const handleLogin = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        phone: loginPhone,
+        password: loginPassword
+      });
+      
+      if (error) {
+        showToast('登录失败: ' + error.message, 'info');
+        return;
+      }
+      
+      setUser(data.user);
+      showToast('登录成功', 'success');
+      
+      // 登录成功后获取用户信息
+      await fetchUserData(data.user.id);
+    } catch (error) {
+      showToast('登录失败: 网络错误', 'info');
+    }
+  };
+
+  // 注册功能
+  const handleRegister = async () => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        phone: registerPhone,
+        password: registerPassword
+      });
+      
+      if (error) {
+        showToast('注册失败: ' + error.message, 'info');
+        return;
+      }
+      
+      setUser(data.user);
+      showToast('注册成功', 'success');
+      
+      // 注册成功后创建用户信息
+      await createUserProfile(data.user);
+    } catch (error) {
+      showToast('注册失败: 网络错误', 'info');
+    }
+  };
+
+  // 获取用户数据
+  const fetchUserData = async (userId: string) => {
+    try {
+      // 获取用户信息
+      const userResponse = await userApi.getById(userId);
+      if (userResponse.data) {
+        setUserProfile(userResponse.data);
+      }
+      
+      // 获取用户的代理
+      const agentsResponse = await agentApi.getByUserId(userId);
+      if (agentsResponse.data) {
+        setAgents(agentsResponse.data);
+      }
+      
+      // 获取用户的收藏
+      const bookmarksResponse = await bookmarkApi.getByUserId(userId);
+      if (bookmarksResponse.data) {
+        const bookmarkedPostIds = bookmarksResponse.data.map((item: any) => item.post_id);
+        // 这里可以进一步获取帖子详情
+      }
+    } catch (error) {
+      console.error('获取用户数据失败:', error);
+    }
+  };
+
+  // 创建用户 profile
+  const createUserProfile = async (user: any) => {
+    try {
+      const userData = {
+        id: user.id,
+        phone: user.phone,
+        nickname: '用户' + user.id.substring(0, 6),
+        avatar: `https://picsum.photos/seed/${user.id}/200/200`,
+        bio: '欢迎加入TranscendPartner',
+        account_id: 'Transcend#' + user.id.substring(0, 6),
+      };
+      
+      await userApi.create(userData);
+      setUserProfile(userData);
+    } catch (error) {
+      console.error('创建用户profile失败:', error);
+    }
+  };
+
+  // 登出功能
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      showToast('登出成功', 'success');
+    } catch (error) {
+      showToast('登出失败: 网络错误', 'info');
+    }
   };
 
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
@@ -2294,12 +2526,6 @@ export default function App() {
 
   const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentView('login');
-    setIsSidebarOpen(false);
-  };
-
   const handleProfileDetail = (id: string) => {
     setSelectedProfileId(id);
     setCurrentView('agent-detail');
@@ -2310,17 +2536,53 @@ export default function App() {
     setCurrentView('edit-agent-profile');
   };
 
-  const handleBookmarkSync = (post: Post, isRemoved: boolean) => {
-    if (isRemoved) {
-      setBookmarkedPosts(prev => prev.filter(p => p.id !== post.id));
-    } else {
-      setBookmarkedPosts(prev => [post, ...prev]);
+  const handleBookmarkSync = async (post: Post, isRemoved: boolean) => {
+    if (!user) return;
+    
+    try {
+      if (isRemoved) {
+        // 从后端删除收藏
+        await bookmarkApi.delete(user.id, post.id);
+        setBookmarkedPosts(prev => prev.filter(p => p.id !== post.id));
+      } else {
+        // 向后端添加收藏
+        await bookmarkApi.create({
+          user_id: user.id,
+          post_id: post.id
+        });
+        setBookmarkedPosts(prev => [post, ...prev]);
+      }
+    } catch (error) {
+      console.error('同步收藏失败:', error);
+      showToast('收藏同步失败', 'info');
     }
   };
 
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
       <AnimatePresence>
+        {currentView === 'login' && (
+          <LoginScreen 
+            onLogin={handleLogin}
+            onGoToRegister={() => setCurrentView('register')}
+            loginPhone={loginPhone}
+            setLoginPhone={setLoginPhone}
+            loginPassword={loginPassword}
+            setLoginPassword={setLoginPassword}
+          />
+        )}
+
+        {currentView === 'register' && (
+          <RegisterScreen 
+            onRegister={handleRegister}
+            onBack={() => setCurrentView('login')}
+            registerPhone={registerPhone}
+            setRegisterPhone={setRegisterPhone}
+            registerPassword={registerPassword}
+            setRegisterPassword={setRegisterPassword}
+          />
+        )}
+
         {currentView === 'main' && (
           <motion.div 
             initial={{ opacity: 0 }} 
