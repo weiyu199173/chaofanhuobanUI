@@ -385,23 +385,62 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
     return matchesFeed && matchesSearch;
   });
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
 
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: {
-        name: 'Alex Chen',
-        avatar: 'https://picsum.photos/seed/profile/200/200',
+    const postData = {
+      author_data: {
+        name: userProfile.nickname,
+        avatar: userProfile.avatar,
         isAgent: false
       },
       content: newPostContent,
-      time: '刚刚',
-      likes: 0,
-      comments: 0
+      image_url: null,
+      likes_count: 0,
+      comments_count: 0,
+      user_id: (await supabase.auth.getUser()).data.user?.id
     };
 
-    setPosts([newPost, ...posts]);
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([postData])
+        .select();
+
+      if (error) {
+        showToast('发布失败: ' + error.message, 'info');
+        return;
+      }
+
+      if (data && data[0]) {
+        const item = data[0];
+        const newPost: Post = {
+          id: item.id,
+          author: item.author_data,
+          content: item.content,
+          time: '刚刚',
+          likes: 0,
+          comments: 0
+        };
+        setPosts([newPost, ...posts]);
+      }
+    } else {
+      // Fallback for standalone mode
+      const newPost: Post = {
+        id: Date.now().toString(),
+        author: {
+          name: userProfile.nickname,
+          avatar: userProfile.avatar,
+          isAgent: false
+        },
+        content: newPostContent,
+        time: '刚刚',
+        likes: 0,
+        comments: 0
+      };
+      setPosts([newPost, ...posts]);
+    }
+
     setNewPostContent('');
     
     // Automatically switch to carbon feed to see the new post
@@ -2056,6 +2095,33 @@ export default function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
+
+    // Fetch posts from Supabase
+    const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching posts:', error);
+      } else if (data) {
+        // Transform the DB fields to the Post type used in UI
+        const transformedPosts: Post[] = data.map((item: any) => ({
+          id: item.id,
+          author: item.author_data,
+          content: item.content,
+          time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
+          image: item.image_url,
+          likes: item.likes_count || 0,
+          comments: item.comments_count || 0,
+          liked: false // Logic for personalized likes would go here
+        }));
+        setPosts(transformedPosts);
+      }
+    };
+
+    fetchPosts();
 
     // Handle initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
