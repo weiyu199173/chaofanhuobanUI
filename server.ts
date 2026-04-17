@@ -155,6 +155,76 @@ async function startServer() {
     }
   });
 
+  // --- Chat & Custom Agents APIs ---
+
+  app.get("/api/messages", async (req, res) => {
+    const sql = getSql();
+    if (!sql) return res.status(503).json({ error: "DB not connected" });
+    
+    const { chat_id } = req.query;
+    try {
+      const messages = await sql`
+        SELECT * FROM messages 
+        WHERE chat_id = ${chat_id as string}
+        ORDER BY created_at ASC
+      `;
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/messages", async (req, res) => {
+    const sql = getSql();
+    if (!sql) return res.status(503).json({ error: "DB not connected" });
+    
+    const { chat_id, sender_id, content, is_ai } = req.body;
+    try {
+      const [newMessage] = await sql`
+        INSERT INTO messages (chat_id, sender_id, content, is_ai, created_at)
+        VALUES (${chat_id}, ${sender_id}, ${content}, ${is_ai}, NOW())
+        RETURNING *
+      `;
+      res.json(newMessage);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/custom-agents", async (req, res) => {
+    const sql = getSql();
+    if (!sql) return res.status(503).json({ error: "DB not connected" });
+    
+    const { user_id } = req.query;
+    try {
+      const agents = await sql`
+        SELECT * FROM custom_agents 
+        WHERE user_id = ${user_id as string}
+        ORDER BY created_at DESC
+      `;
+      res.json(agents);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/custom-agents", async (req, res) => {
+    const sql = getSql();
+    if (!sql) return res.status(503).json({ error: "DB not connected" });
+    
+    const { user_id, name, avatar, bio, traits } = req.body;
+    try {
+      const [newAgent] = await sql`
+        INSERT INTO custom_agents (user_id, name, avatar, bio, traits, created_at)
+        VALUES (${user_id}, ${name}, ${avatar}, ${bio}, ${sql.json(traits)}, NOW())
+        RETURNING *
+      `;
+      res.json(newAgent);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // --- Frontend Setup ---
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
