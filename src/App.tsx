@@ -449,7 +449,6 @@ const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, us
     { icon: Compass, label: '技能仓库', count: 'New', view: 'skill-warehouse' },
     { icon: Star, label: 'MCP 市场', count: 'VIP', view: 'mcp-market' },
     { icon: Settings, label: '系统设置', view: 'app-settings' },
-    { icon: LogOut, label: '安全登出', action: onLogout },
   ];
 
   return (
@@ -534,7 +533,18 @@ const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, us
               ))}
             </nav>
 
-            <footer className="p-8 border-t border-white/5">
+            <footer className="p-8 border-t border-white/5 space-y-6">
+              <LaserButton 
+                onClick={() => {
+                  onLogout();
+                  onClose();
+                }}
+                className="w-full h-12 rounded-xl flex items-center gap-4 px-6 hover:bg-error/10 transition-all text-error group"
+              >
+                <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
+                <span className="font-bold text-sm tracking-widest uppercase">退出登录</span>
+              </LaserButton>
+
               <div className="flex items-center justify-between text-outline text-[10px] font-bold uppercase tracking-widest">
                 <span>Transcend Ecosystem</span>
                 <span>v4.2.0</span>
@@ -1031,6 +1041,7 @@ const MeScreen = ({
   onMyMoments,
   bookmarkedPosts,
   onMenuOpen,
+  onLogout,
   userProfile,
   agents
 }: { 
@@ -1040,6 +1051,7 @@ const MeScreen = ({
   onMyMoments: () => void,
   bookmarkedPosts: Post[],
   onMenuOpen: () => void,
+  onLogout: () => void,
   userProfile: any,
   agents: any[]
 }) => {
@@ -1252,6 +1264,18 @@ const MeScreen = ({
                 <ChevronRight size={18} className="text-outline" />
               </div>
             ))}
+            <div 
+              onClick={onLogout}
+              className="flex items-center justify-between p-5 hover:bg-error/5 transition-colors cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-error/5 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-all">
+                  <LogOut size={20} />
+                </div>
+                <span className="font-medium text-error">退出登录</span>
+              </div>
+              <ChevronRight size={18} className="text-error opacity-50" />
+            </div>
           </div>
         </section>
       </div>
@@ -2253,7 +2277,7 @@ export default function App() {
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AppTab>('square');
-  const [currentView, setCurrentView] = useState<AppView>('main');
+  const [currentView, setCurrentView] = useState<AppView>('login');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
@@ -2320,9 +2344,30 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
-      <AnimatePresence>
-        {currentView === 'main' && (
+      <AnimatePresence mode="wait">
+        {currentView === 'login' && (
+          <LoginScreen 
+            onLogin={() => {
+              setIsLoggedIn(true);
+              setCurrentView('main');
+            }}
+            onGoToRegister={() => setCurrentView('register')}
+          />
+        )}
+
+        {currentView === 'register' && (
+          <RegisterScreen 
+            onRegister={() => {
+              setIsLoggedIn(true);
+              setCurrentView('main');
+            }}
+            onBack={() => setCurrentView('login')}
+          />
+        )}
+
+        {(isLoggedIn || currentView === 'main') && currentView !== 'login' && currentView !== 'register' && (
           <motion.div 
+            key="main-app"
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
@@ -2353,6 +2398,7 @@ export default function App() {
                 onMyMoments={() => setCurrentView('my-moments')}
                 bookmarkedPosts={bookmarkedPosts}
                 onMenuOpen={() => setIsSidebarOpen(true)}
+                onLogout={handleLogout}
                 userProfile={userProfile}
                 agents={agents}
               />
