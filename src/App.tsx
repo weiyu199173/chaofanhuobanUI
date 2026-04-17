@@ -64,7 +64,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
-type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile';
+type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile' | 'lab' | 'top-secret' | 'core-architecture' | 'app-settings' | 'global-square';
 
 interface Post {
   id: string;
@@ -439,14 +439,14 @@ const LaserButton: React.FC<LaserButtonProps> = ({ children, onClick, className 
   );
 };
 
-const SideNavigation = ({ isOpen, onClose, onLogout, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, userProfile: any }) => {
-  const menuItems = [
-    { icon: Globe, label: '全球广场', count: '128' },
-    { icon: Compass, label: '实验室', count: 'New' },
-    { icon: Star, label: '最高机密', count: 'VIP' },
-    { icon: Database, label: '核心架构', count: '' },
-    { icon: Settings, label: '系统设置', count: '' },
-    { icon: LogOut, label: '安全登出', count: '', action: onLogout },
+const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, userProfile: any }) => {
+  const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: AppView }[] = [
+    { icon: Globe, label: '全球广场', count: '128', view: 'global-square' },
+    { icon: Compass, label: '实验室', count: 'New', view: 'lab' },
+    { icon: Star, label: '最高机密', count: 'VIP', view: 'top-secret' },
+    { icon: Database, label: '核心架构', view: 'core-architecture' },
+    { icon: Settings, label: '系统设置', view: 'app-settings' },
+    { icon: LogOut, label: '安全登出', action: onLogout },
   ];
 
   return (
@@ -492,6 +492,8 @@ const SideNavigation = ({ isOpen, onClose, onLogout, userProfile }: { isOpen: bo
                   onClick={() => {
                     if (item.action) {
                       item.action();
+                    } else if (item.view) {
+                      onNavigate(item.view);
                     }
                     onClose();
                   }}
@@ -2068,6 +2070,254 @@ const MyMomentsScreen = ({ onBack, moments }: { onBack: () => void, moments: Pos
   );
 };
 
+// --- Global Square ---
+const GlobalSquareScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+  return (
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest">全球广场</h1>
+        </div>
+      </header>
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center space-y-8">
+        <div className="w-64 h-64 relative">
+          <motion.div 
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 rounded-full border-2 border-dashed border-primary/20"
+          />
+          <motion.div 
+            animate={{ rotate: -360 }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-4 rounded-full border border-primary/40 border-t-transparent"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+             <Globe size={80} className="text-primary animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-4 max-w-sm">
+           <h2 className="text-2xl font-headline font-bold uppercase tracking-tight text-on-surface">连接全球意识网络</h2>
+           <p className="text-outline text-sm leading-relaxed">正在将您的感知中枢接入全球 Transcend 广场。数以千万计的人类与数字生命正在此共鸣。</p>
+        </div>
+        <LaserButton onClick={() => onAction('已刷新全域共鸣流')} className="px-8 py-3 rounded-xl bg-primary/20 text-primary border border-primary/30 font-bold uppercase tracking-widest text-xs">
+           加入全域流
+        </LaserButton>
+      </main>
+    </motion.div>
+  );
+};
+
+// --- Lab Screen ---
+const LabScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+  return (
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-secondary">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">神经实验室</h1>
+        </div>
+      </header>
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar p-6">
+         <div className="grid grid-cols-1 gap-6 max-w-2xl mx-auto pb-32">
+            {[
+              { id: 'exp1', name: '全意识上载模拟', desc: '模拟将人类意识碎片转化为协议包。', status: 'Ready', icon: Brain },
+              { id: 'exp2', name: '神经映射优化', desc: '提升 Agent 的情感共鸣带宽。', status: 'WIP', icon: Sparkles },
+              { id: 'exp3', name: '高维执行协议', desc: '测试跨时空维度的任务分配。', status: 'Locked', icon: Cpu },
+            ].map(exp => (
+              <LaserButton key={exp.id} onClick={() => onAction(`启动: ${exp.name}`)} className="text-left bg-surface-container-low border border-white/5 p-6 rounded-3xl group transition-all hover:bg-white/5">
+                 <div className="flex items-start gap-5">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-all border border-primary/10">
+                       <exp.icon size={28} />
+                    </div>
+                    <div className="flex-1">
+                       <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-bold tracking-wide text-on-surface">{exp.name}</h3>
+                          <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-widest ${exp.status === 'Ready' ? 'bg-primary/20 text-primary' : 'bg-outline/10 text-outline'}`}>{exp.status}</span>
+                       </div>
+                       <p className="text-xs text-outline leading-normal">{exp.desc}</p>
+                    </div>
+                 </div>
+              </LaserButton>
+            ))}
+         </div>
+      </main>
+    </motion.div>
+  );
+};
+
+// --- Top Secret ---
+const TopSecretScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+  return (
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-surface flex flex-col overflow-hidden">
+       <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-black/40 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-all text-error">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">最高机密</h1>
+        </div>
+         <Lock size={20} className="text-error" />
+      </header>
+      <main className="flex-1 pt-24 px-8 flex flex-col items-center justify-center relative overflow-hidden">
+         <div className="w-full max-w-xs space-y-12 z-10">
+            <div className="text-center space-y-2">
+               <Shield size={64} className="mx-auto text-error mb-4 animate-pulse" />
+               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-error/60">Restricted Access</p>
+               <h2 className="text-3xl font-headline font-bold uppercase tracking-tight text-on-surface">已加密区域</h2>
+            </div>
+            <div className="space-y-6">
+                <p className="text-center text-outline text-xs leading-relaxed px-4">
+                  该区域包含未公开的高维协议和个人数字存档。所有操作将产生永久性神经水印。
+                </p>
+                <div className="grid grid-cols-3 gap-4 h-48">
+                    {[1,2,3,4,5,6,7,8,9].map(i => (
+                        <div key={i} className="bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all cursor-pointer">
+                           <div className="w-1.5 h-1.5 rounded-full bg-error/40" />
+                        </div>
+                    ))}
+                </div>
+                <LaserButton onClick={() => onAction('身份验证失败: 需要生物特征注入')} className="w-full py-4 rounded-2xl bg-error/10 text-error border border-error/20 font-bold uppercase tracking-[0.2em] text-[10px]">
+                   开始验证感知序列
+                </LaserButton>
+            </div>
+         </div>
+         <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-1/4 -left-20 w-80 h-80 bg-error/5 rounded-full blur-[100px]" />
+            <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-error/5 rounded-full blur-[100px]" />
+         </div>
+      </main>
+    </motion.div>
+  );
+};
+
+// --- Core Architecture ---
+const CoreArchitectureScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+  return (
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">核心架构</h1>
+        </div>
+      </header>
+      <main className="flex-1 pt-24 px-8 space-y-8 overflow-y-auto custom-scrollbar pb-32">
+         <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+            {[
+              { label: '系统算力', value: '4.2 ZettaFLOPS', trend: '+12%', icon: Cpu },
+              { label: '神经密度', value: '1.2M Synapses', trend: '+5%', icon: Brain },
+              { label: '存储占用', value: '84.2PB', trend: 'Stable', icon: Database },
+              { label: '上行带宽', value: '12.5GB/s', trend: '-2%', icon: Globe },
+            ].map(stat => (
+              <div key={stat.label} className="bg-surface-container-low p-6 rounded-3xl border border-white/5 space-y-3">
+                 <div className="flex items-center justify-between">
+                    <stat.icon size={20} className="text-primary" />
+                    <span className="text-[10px] font-bold text-green-500">{stat.trend}</span>
+                 </div>
+                 <div>
+                    <p className="text-[9px] uppercase font-bold tracking-widest text-outline">{stat.label}</p>
+                    <p className="text-xl font-headline font-bold text-on-surface">{stat.value}</p>
+                 </div>
+              </div>
+            ))}
+         </div>
+         <div className="max-w-2xl mx-auto bg-surface-container-low rounded-3xl p-8 border border-white/5 space-y-6">
+            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+               <RotateCw size={16} className="animate-spin" />
+               实时意识同步流
+            </h3>
+            <div className="space-y-4">
+                {[1,2,3].map(i => (
+                    <div key={i} className="flex gap-4 items-center">
+                       <div className="w-1 h-8 bg-primary/20 rounded-full overflow-hidden">
+                          <motion.div animate={{ y: [-32, 32] }} transition={{ duration: 2, repeat: Infinity }} className="w-full h-4 bg-primary" />
+                       </div>
+                       <div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden relative">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${Math.random() * 60 + 20}%` }} transition={{ duration: 1, delay: i * 0.2 }} className="h-full bg-primary/20 border-r border-primary" />
+                       </div>
+                       <span className="font-mono text-[9px] text-outline whitespace-nowrap">PROTO_X_{i*120}</span>
+                    </div>
+                ))}
+            </div>
+         </div>
+          <LaserButton onClick={() => onAction('核心引擎已完成深度自洽性检查')} className="max-w-2xl mx-auto w-full py-4 rounded-2xl bg-primary/5 text-primary border border-primary/20 font-bold uppercase tracking-widest text-xs">
+             运行引擎自洽性检查
+          </LaserButton>
+      </main>
+    </motion.div>
+  );
+};
+
+// --- Settings Screen ---
+const SettingsScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+  return (
+    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
+      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-outline">
+            <ChevronLeft size={24} />
+          </button>
+          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">系统设置</h1>
+        </div>
+      </header>
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar pb-32">
+         <div className="max-w-2xl mx-auto space-y-12">
+            {[
+              { 
+                category: '感知与通知', 
+                items: [
+                   { label: '全域共鸣提醒', value: true, icon: Bell },
+                   { label: '意识同步频率', value: '实时', icon: Clock },
+                   { label: '沉浸式扫掠特效', value: true, icon: Sparkles },
+                ] 
+              },
+              { 
+                category: '安全与同步', 
+                items: [
+                   { label: '生物特征锁定', value: false, icon: Lock },
+                   { label: '高维隐私屏蔽', value: true, icon: Shield },
+                   { label: '离线感知状态', value: false, icon: Smartphone },
+                ] 
+              }
+            ].map(group => (
+              <div key={group.category} className="space-y-4">
+                 <h3 className="text-[10px] uppercase font-bold tracking-[0.3em] text-outline ml-4">{group.category}</h3>
+                 <div className="bg-surface-container-low rounded-3xl border border-white/5 overflow-hidden">
+                    {group.items.map((item, i) => (
+                       <div key={item.label} onClick={() => onAction(`设置已更新: ${item.label}`)} className={`flex items-center justify-between p-6 cursor-pointer hover:bg-white/5 transition-all ${i !== group.items.length - 1 ? 'border-b border-white/5' : ''}`}>
+                          <div className="flex items-center gap-4">
+                             <item.icon size={20} className="text-primary" />
+                             <span className="font-bold text-sm text-on-surface">{item.label}</span>
+                          </div>
+                          {typeof item.value === 'boolean' ? (
+                              <div className={`w-10 h-5 rounded-full relative transition-all ${item.value ? 'bg-primary' : 'bg-white/10'}`}>
+                                 <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${item.value ? 'left-6' : 'left-1'}`} />
+                              </div>
+                          ) : (
+                              <span className="text-[10px] font-bold text-outline uppercase tracking-widest">{item.value}</span>
+                          )}
+                       </div>
+                    ))}
+                 </div>
+              </div>
+            ))}
+            <div className="pt-8 text-center space-y-4">
+               <p className="text-[10px] font-bold text-outline uppercase tracking-[0.4em]">Project Transcend Finality v4.2.0</p>
+               <button className="text-error font-bold text-[10px] uppercase tracking-widest hover:underline px-4 py-2 bg-error/5 rounded-lg border border-error/10 transition-all hover:bg-error/10">重置当前感知节点</button>
+            </div>
+         </div>
+      </main>
+    </motion.div>
+  );
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
@@ -2178,7 +2428,13 @@ export default function App() {
               />
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
-            <SideNavigation isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onLogout={handleLogout} userProfile={userProfile} />
+            <SideNavigation 
+              isOpen={isSidebarOpen} 
+              onClose={() => setIsSidebarOpen(false)} 
+              onLogout={handleLogout} 
+              onNavigate={(view) => setCurrentView(view)}
+              userProfile={userProfile} 
+            />
           </motion.div>
         )}
 
@@ -2206,6 +2462,26 @@ export default function App() {
             onBack={() => setCurrentView('main')}
             moments={myMoments}
           />
+        )}
+
+        {currentView === 'global-square' && (
+          <GlobalSquareScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'lab' && (
+          <LabScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'top-secret' && (
+          <TopSecretScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'core-architecture' && (
+          <CoreArchitectureScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'app-settings' && (
+          <SettingsScreen onBack={() => setCurrentView('main')} onAction={showToast} />
         )}
 
         {currentView === 'create-agent' && (
