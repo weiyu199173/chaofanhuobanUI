@@ -61,7 +61,11 @@ import {
   ChevronLeft,
   ShoppingBag
 } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from './lib/supabase';
+import { LoginScreen } from './components/auth/LoginScreen';
+import { RegisterScreen } from './components/auth/RegisterScreen';
+import { LaserButton, TiltedCard } from './components/Common';
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
@@ -206,239 +210,7 @@ const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, onTabChan
   );
 };
 
-// --- Screens ---
-
-const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToRegister: () => void }) => {
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }} 
-      animate={{ opacity: 1 }}
-      className="flex flex-col min-h-screen items-center justify-center p-6 bg-black overflow-hidden relative"
-    >
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full" />
-
-      <main className="w-full max-w-[420px] z-10 flex flex-col space-y-12">
-        <header className="flex flex-col items-center text-center space-y-4">
-          <div className="flex flex-col items-center group">
-            <div className="grid grid-cols-4 gap-[2px] w-6 h-6 mb-6 opacity-90 group-hover:opacity-100 transition-opacity">
-              {[1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1].map((p, i) => (
-                <div key={i} className={`aspect-square ${p ? 'bg-primary' : 'bg-transparent'}`} />
-              ))}
-            </div>
-            <h1 className="text-3xl font-headline font-bold tracking-[0.2em] text-on-surface">超凡伙伴</h1>
-            <p className="text-[10px] font-headline uppercase tracking-[0.4em] text-primary mt-1">TranscendPartner</p>
-          </div>
-        </header>
-
-        <section className="space-y-8">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">手机号</label>
-              <div className="relative">
-                <input 
-                  type="tel" 
-                  placeholder="+86 1XX XXXX XXXX"
-                  className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-                />
-                <Smartphone size={18} className="absolute right-4 top-4 text-outline" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between items-end ml-1">
-                <label className="text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold">密码</label>
-                <button className="text-[10px] uppercase tracking-widest text-primary hover:text-primary transition-colors font-bold">忘记密码</button>
-              </div>
-              <div className="relative">
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-                />
-                <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
-              </div>
-            </div>
-          </div>
-
-          <button 
-            onClick={onLogin}
-            className="w-full bg-on-surface text-background font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-          >
-            登录
-          </button>
-
-          <div className="text-center">
-            <span className="text-xs text-on-surface-variant">还没有账号？</span>
-            <button onClick={onGoToRegister} className="text-xs text-primary font-bold hover:underline underline-offset-4 ml-1">注册</button>
-          </div>
-        </section>
-
-        <footer className="space-y-10">
-          <div className="flex items-center gap-4">
-            <div className="h-[1px] flex-1 bg-surface-container-high" />
-            <span className="text-[9px] uppercase tracking-[0.25em] text-outline font-bold">其他登录方式</span>
-            <div className="h-[1px] flex-1 bg-surface-container-high" />
-          </div>
-          <div className="flex justify-center gap-8">
-            <button className="w-14 h-14 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-container-high transition-colors group">
-              <Sparkles size={24} className="group-hover:scale-110 transition-transform" />
-            </button>
-            <button className="w-14 h-14 rounded-full bg-surface-container-lowest flex items-center justify-center hover:bg-surface-container-high transition-colors group">
-              <MessageCircle size={24} className="group-hover:scale-110 transition-transform" />
-            </button>
-          </div>
-        </footer>
-      </main>
-    </motion.div>
-  );
-};
-
-const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack: () => void }) => {
-  return (
-    <motion.div 
-      initial={{ x: '100%' }} 
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      className="flex flex-col min-h-screen items-center justify-center p-6 bg-black overflow-hidden relative"
-    >
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/5 blur-[150px] rounded-full" />
-
-      <main className="w-full max-w-[420px] z-10 flex flex-col space-y-12">
-        <header className="flex flex-col items-center text-center space-y-4">
-          <button onClick={onBack} className="self-start flex items-center gap-2 text-outline hover:text-primary transition-colors mb-4">
-             <ArrowLeft size={20} />
-             <span className="text-sm font-bold tracking-widest uppercase">返回登录</span>
-          </button>
-          <div className="flex flex-col items-center group">
-            <h1 className="text-3xl font-headline font-bold tracking-[0.2em] text-on-surface">创建账号</h1>
-            <p className="text-[10px] font-headline uppercase tracking-[0.4em] text-primary mt-1">Join TranscendPartner</p>
-          </div>
-        </header>
-
-        <section className="space-y-8">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">手机号</label>
-              <div className="relative">
-                <input 
-                  type="tel" 
-                  placeholder="+86 1XX XXXX XXXX"
-                  className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-                />
-                <button className="absolute right-4 top-4 text-xs font-bold text-primary hover:opacity-80">获取验证码</button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">验证码</label>
-              <input 
-                type="text" 
-                placeholder="请输入6位验证码"
-                className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">设置密码</label>
-              <div className="relative">
-                <input 
-                  type="password" 
-                  placeholder="••••••••"
-                  className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-                />
-                <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
-              </div>
-            </div>
-          </div>
-
-          <button 
-            onClick={onRegister}
-            className="w-full bg-primary text-on-primary font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(29,155,240,0.2)]"
-          >
-            注册并加入
-          </button>
-        </section>
-      </main>
-    </motion.div>
-  );
-};
-
 // --- Components ---
-
-interface TiltedCardProps {
-  children: ReactNode;
-  className?: string;
-  onClick?: (e: MouseEvent) => void;
-}
-
-const TiltedCard: React.FC<TiltedCardProps> = ({ children, className = "", onClick }) => {
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-
-  const mouseXSpring = useSpring(x);
-  const mouseYSpring = useSpring(y);
-
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], ["7deg", "-7deg"]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-7deg", "7deg"]);
-
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const xPct = mouseX / width - 0.5;
-    const yPct = mouseY / height - 0.5;
-    x.set(xPct);
-    y.set(yPct);
-  };
-
-  const handleMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
-  return (
-    <motion.div
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={onClick}
-      style={{ rotateY, rotateX, transformStyle: "preserve-3d" }}
-      className={`relative ${className}`}
-    >
-      {children}
-    </motion.div>
-  );
-};
-
-interface LaserButtonProps {
-  children: ReactNode;
-  onClick?: () => void;
-  className?: string;
-  active?: boolean;
-  disabled?: boolean;
-}
-
-const LaserButton: React.FC<LaserButtonProps> = ({ children, onClick, className = "", active = false, disabled = false }) => {
-  const [isSweeping, setIsSweeping] = useState(false);
-
-  const handleClick = (e: MouseEvent) => {
-    if (disabled) return;
-    setIsSweeping(true);
-    setTimeout(() => setIsSweeping(false), 1500);
-    onClick?.();
-  };
-
-  return (
-    <button 
-      onClick={handleClick} 
-      disabled={disabled}
-      className={`relative overflow-hidden group outline-none ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
-    >
-      {children}
-      {isSweeping && <div className="laser-sweep-overlay" />}
-    </button>
-  );
-};
 
 const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, onTabChange: (tab: AppTab) => void, userProfile: any }) => {
   const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: AppView }[] = [
@@ -2283,6 +2055,34 @@ export default function App() {
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        // Pre-fill user profile if available in metadata
+        if (session.user.user_metadata?.nickname) {
+          setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
+        }
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        if (session.user.user_metadata?.nickname) {
+          setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
+        }
+      } else {
+        setIsLoggedIn(false);
+        setCurrentView('login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3000);
       return () => clearTimeout(timer);
@@ -2318,7 +2118,8 @@ export default function App() {
 
   const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsLoggedIn(false);
     setCurrentView('login');
     setIsSidebarOpen(false);
@@ -2347,21 +2148,29 @@ export default function App() {
       <AnimatePresence mode="wait">
         {currentView === 'login' && (
           <LoginScreen 
-            onLogin={() => {
+            onLogin={(user) => {
               setIsLoggedIn(true);
               setCurrentView('main');
+              if (user.user_metadata?.nickname) {
+                setUserProfile(prev => ({ ...prev, nickname: user.user_metadata.nickname }));
+              }
             }}
             onGoToRegister={() => setCurrentView('register')}
+            onAction={showToast}
           />
         )}
 
         {currentView === 'register' && (
           <RegisterScreen 
-            onRegister={() => {
+            onRegister={(user) => {
               setIsLoggedIn(true);
               setCurrentView('main');
+              if (user.user_metadata?.nickname) {
+                setUserProfile(prev => ({ ...prev, nickname: user.user_metadata.nickname }));
+              }
             }}
             onBack={() => setCurrentView('login')}
+            onAction={showToast}
           />
         )}
 
