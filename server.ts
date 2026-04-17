@@ -240,17 +240,14 @@ async function startServer() {
     });
   }
 
-  // --- Final Server Start ---
-  if (process.env.NODE_ENV !== "production") {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`\x1b[32m[Server]\x1b[0m Running on http://localhost:${PORT}`);
-    });
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`\x1b[32m[Server]\x1b[0m Running on http://localhost:${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  });
 
   return app;
 }
 
-export const app = startServer().catch((error) => {
+startServer().catch((error) => {
   console.error("\x1b[31m[Server Error]\x1b[0m", error);
 });
 
