@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Smartphone, EyeOff, Sparkles, MessageCircle, Eye } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface LoginScreenProps {
   onLogin: (user: any) => void;
@@ -24,6 +24,17 @@ export const LoginScreen = ({ onLogin, onGoToRegister, onAction }: LoginScreenPr
 
     setLoading(true);
     try {
+      if (!isSupabaseConfigured) {
+        // Standalone mode: Instant login with dummy user
+        onAction?.('单机演示模式：本地会话已建立', 'success');
+        onLogin({
+          id: 'demo-user',
+          email: email,
+          user_metadata: { nickname: email.split('@')[0] }
+        });
+        return;
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -105,7 +116,7 @@ export const LoginScreen = ({ onLogin, onGoToRegister, onAction }: LoginScreenPr
             disabled={loading}
             className="w-full bg-on-surface text-background font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50"
           >
-            {loading ? '同步中...' : '登录'}
+            {loading ? '同步中...' : (isSupabaseConfigured ? '登录' : '进入演示模式')}
           </button>
 
           <div className="text-center">

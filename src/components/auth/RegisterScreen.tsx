@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, EyeOff, Eye } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 interface RegisterScreenProps {
   onRegister: (user: any) => void;
@@ -25,6 +25,17 @@ export const RegisterScreen = ({ onRegister, onBack, onAction }: RegisterScreenP
 
     setLoading(true);
     try {
+      if (!isSupabaseConfigured) {
+        // Standalone mode: Instant registration with dummy user
+        onAction?.('单机演示模式：本地虚拟账号已创建', 'success');
+        onRegister({
+          id: 'demo-user-' + Date.now(),
+          email: email,
+          user_metadata: { nickname: nickname }
+        });
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

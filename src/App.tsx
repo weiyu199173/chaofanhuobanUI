@@ -2149,37 +2149,14 @@ export default function App() {
     }
   };
 
-  if (!isSupabaseConfigured) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full space-y-8 p-12 rounded-[40px] bg-zinc-900/50 border border-white/5 backdrop-blur-2xl">
-          <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center text-primary mx-auto mb-8 animate-pulse">
-            <Lock size={40} />
-          </div>
-          <h2 className="text-3xl font-bold tracking-tighter text-white">配置未就绪</h2>
-          <p className="text-zinc-400 text-sm leading-relaxed">
-            检测到 Supabase 环境变量缺失。为了在 Vercel 上运行应用，你需要添加以下环境变量：
-          </p>
-          <div className="bg-black/40 p-4 rounded-2xl border border-white/5 font-mono text-[10px] text-left text-primary/80 space-y-2">
-            <div>VITE_SUPABASE_URL</div>
-            <div>VITE_SUPABASE_ANON_KEY</div>
-          </div>
-          <p className="text-zinc-500 text-xs italic">
-            添加环境变量后，请重新触发 Vercel 部署。
-          </p>
-          <LaserButton 
-            onClick={() => window.location.reload()}
-            className="w-full h-14 rounded-2xl bg-white text-black font-bold uppercase tracking-widest text-xs"
-          >
-            我已配置，刷新重试
-          </LaserButton>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
+      {!isSupabaseConfigured && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-primary/10 border border-primary/20 backdrop-blur-md rounded-full flex items-center gap-2 pointer-events-none">
+          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+          <span className="text-[9px] font-bold text-primary uppercase tracking-widest">单机演示模式</span>
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {currentView === 'login' && (
           <LoginScreen 
