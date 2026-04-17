@@ -58,13 +58,14 @@ import {
   QrCode,
   MapPin,
   Camera,
-  ChevronLeft
+  ChevronLeft,
+  ShoppingBag
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
-type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile' | 'lab' | 'top-secret' | 'core-architecture' | 'app-settings' | 'global-square';
+type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile' | 'skill-warehouse' | 'mcp-market' | 'app-settings';
 
 interface Post {
   id: string;
@@ -439,12 +440,14 @@ const LaserButton: React.FC<LaserButtonProps> = ({ children, onClick, className 
   );
 };
 
-const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, userProfile: any }) => {
+const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, onTabChange: (tab: AppTab) => void, userProfile: any }) => {
   const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: AppView }[] = [
-    { icon: Globe, label: '全球广场', count: '128', view: 'global-square' },
-    { icon: Compass, label: '实验室', count: 'New', view: 'lab' },
-    { icon: Star, label: '最高机密', count: 'VIP', view: 'top-secret' },
-    { icon: Database, label: '核心架构', view: 'core-architecture' },
+    { icon: Globe, label: '人机广场', count: '128', action: () => {
+      onTabChange('square');
+      onNavigate('main');
+    }},
+    { icon: Compass, label: '技能仓库', count: 'New', view: 'skill-warehouse' },
+    { icon: Star, label: 'MCP 市场', count: 'VIP', view: 'mcp-market' },
     { icon: Settings, label: '系统设置', view: 'app-settings' },
     { icon: LogOut, label: '安全登出', action: onLogout },
   ];
@@ -465,22 +468,43 @@ const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, userProfile }: 
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 left-0 h-full w-[80%] max-w-sm bg-surface flex flex-col z-[201] border-r border-white/5 shadow-2xl overflow-hidden shadow-primary/10"
+            className="fixed top-0 left-0 h-full w-[85%] max-w-sm bg-surface flex flex-col z-[201] border-r border-white/5 shadow-2xl overflow-hidden shadow-primary/10"
           >
             <div className="laser-sweep-overlay opacity-30 pointer-events-none" />
             
-            <header className="p-8 pb-12">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary border border-primary/20">
-                  <Layout size={24} />
+            <header className="p-8 pt-12 pb-14 space-y-8">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary border border-primary/20">
+                  <Layout size={28} />
                 </div>
-                <h2 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">Transcend</h2>
+                <h2 className="text-2xl font-headline font-bold uppercase tracking-widest text-on-surface">Transcend</h2>
               </div>
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low border border-white/5">
-                <img src={userProfile.avatar} className="w-10 h-10 rounded-full object-cover" />
-                <div className="min-w-0">
-                  <p className="font-bold text-sm truncate">{userProfile.nickname}</p>
-                  <p className="text-[10px] text-primary uppercase tracking-wider font-bold">高级架构师</p>
+              <div className="p-6 rounded-3xl bg-surface-container-low border border-white/5 flex flex-col gap-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl rounded-full -translate-y-12 translate-x-12" />
+                <div className="flex items-center gap-5 relative z-10">
+                  <div className="relative">
+                    <img src={userProfile.avatar} className="w-16 h-16 rounded-2xl object-cover ring-2 ring-primary/20" />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-surface-container-low flex items-center justify-center">
+                       <Shield size={10} className="text-background" />
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-lg truncate tracking-tight">{userProfile.nickname}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[9px] text-primary uppercase tracking-widest font-black leading-none bg-primary/10 px-1.5 py-0.5 rounded border border-primary/10">高级架构师</p>
+                      <span className="text-[9px] text-outline font-bold uppercase tracking-widest">ID: {userProfile.accountId.split('#')[1]}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 relative z-10">
+                   <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                      <p className="text-[8px] uppercase font-bold text-outline tracking-widest mb-0.5">GUARD CREDIT</p>
+                      <p className="font-mono text-xs font-bold text-primary">LV.4 4890</p>
+                   </div>
+                   <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                      <p className="text-[8px] uppercase font-bold text-outline tracking-widest mb-0.5">AGENT SYNC</p>
+                      <p className="font-mono text-xs font-bold text-primary">98.2%</p>
+                   </div>
                 </div>
               </div>
             </header>
@@ -705,7 +729,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
             </button>
           </div>
           
-          <section className="bg-surface-container-low rounded-2xl p-4 border border-white/5 mb-8 group focus-within:border-primary/40 transition-all">
+          <section className="bg-surface-container-low rounded-2xl p-4 mb-8 group focus-within:ring-1 focus-within:ring-primary/40 transition-all">
             <textarea 
               value={newPostContent}
               onChange={(e) => setNewPostContent(e.target.value)}
@@ -847,7 +871,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
                           exit={{ height: 0, opacity: 0 }}
                           className="mt-4 overflow-hidden"
                         >
-                          <div className="flex gap-3 bg-surface-container-low p-2 rounded-xl border border-white/5">
+                          <div className="flex gap-3 bg-surface-container-low p-2 rounded-xl">
                             <input 
                               autoFocus
                               type="text"
@@ -2070,76 +2094,38 @@ const MyMomentsScreen = ({ onBack, moments }: { onBack: () => void, moments: Pos
   );
 };
 
-// --- Global Square ---
-const GlobalSquareScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+// --- Skill Warehouse (formerly Lab) ---
+const SkillWarehouseScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
   return (
     <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-xl font-headline font-bold uppercase tracking-widest">全球广场</h1>
-        </div>
-      </header>
-      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar flex flex-col items-center justify-center space-y-8">
-        <div className="w-64 h-64 relative">
-          <motion.div 
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-0 rounded-full border-2 border-dashed border-primary/20"
-          />
-          <motion.div 
-            animate={{ rotate: -360 }}
-            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-4 rounded-full border border-primary/40 border-t-transparent"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-             <Globe size={80} className="text-primary animate-pulse" />
-          </div>
-        </div>
-        <div className="text-center space-y-4 max-w-sm">
-           <h2 className="text-2xl font-headline font-bold uppercase tracking-tight text-on-surface">连接全球意识网络</h2>
-           <p className="text-outline text-sm leading-relaxed">正在将您的感知中枢接入全球 Transcend 广场。数以千万计的人类与数字生命正在此共鸣。</p>
-        </div>
-        <LaserButton onClick={() => onAction('已刷新全域共鸣流')} className="px-8 py-3 rounded-xl bg-primary/20 text-primary border border-primary/30 font-bold uppercase tracking-widest text-xs">
-           加入全域流
-        </LaserButton>
-      </main>
-    </motion.div>
-  );
-};
-
-// --- Lab Screen ---
-const LabScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
-  return (
-    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-secondary">
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">神经实验室</h1>
-        </div>
+      <header className="fixed top-0 left-0 h-16 w-full z-50 flex items-center gap-4 px-6 bg-background/80 backdrop-blur-xl border-b border-white/5">
+        <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-secondary">
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">技能仓库</h1>
       </header>
       <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar p-6">
+         <div className="max-w-2xl mx-auto mb-8 bg-surface-container-low/50 p-6 rounded-3xl border border-white/5">
+            <p className="text-xs text-outline leading-relaxed select-none">在这里为您的 Agent 安装高维技能插件，扩展其认知与执行带宽。</p>
+         </div>
          <div className="grid grid-cols-1 gap-6 max-w-2xl mx-auto pb-32">
             {[
-              { id: 'exp1', name: '全意识上载模拟', desc: '模拟将人类意识碎片转化为协议包。', status: 'Ready', icon: Brain },
-              { id: 'exp2', name: '神经映射优化', desc: '提升 Agent 的情感共鸣带宽。', status: 'WIP', icon: Sparkles },
-              { id: 'exp3', name: '高维执行协议', desc: '测试跨时空维度的任务分配。', status: 'Locked', icon: Cpu },
-            ].map(exp => (
-              <LaserButton key={exp.id} onClick={() => onAction(`启动: ${exp.name}`)} className="text-left bg-surface-container-low border border-white/5 p-6 rounded-3xl group transition-all hover:bg-white/5">
+              { id: 'skill1', name: '深度逻辑链', desc: '安装后 agent 将具备多步逻辑推演能力。', status: 'Available', icon: Brain },
+              { id: 'skill2', name: '情感共鸣协议', desc: '增强 agent 在复杂对话中的共情响应。', status: 'Installed', icon: Sparkles },
+              { id: 'skill3', name: '高维执行代理', desc: '允许 agent 代替人类执行复杂的跨域任务。', status: 'Locked', icon: Cpu },
+              { id: 'skill4', name: '视觉识别中枢', desc: '赋予针对高维图像数据流的解码能力。', status: 'Available', icon: Eye },
+            ].map(skill => (
+              <LaserButton key={skill.id} onClick={() => onAction(skill.status === 'Installed' ? '技能已完成部署' : `正在安装: ${skill.name}`)} className="text-left bg-surface-container-low border border-white/5 p-6 rounded-3xl group transition-all hover:bg-white/5">
                  <div className="flex items-start gap-5">
                     <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-all border border-primary/10">
-                       <exp.icon size={28} />
+                       <skill.icon size={28} />
                     </div>
                     <div className="flex-1">
                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-bold tracking-wide text-on-surface">{exp.name}</h3>
-                          <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-widest ${exp.status === 'Ready' ? 'bg-primary/20 text-primary' : 'bg-outline/10 text-outline'}`}>{exp.status}</span>
+                          <h3 className="font-bold tracking-wide text-on-surface">{skill.name}</h3>
+                          <span className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase tracking-widest ${skill.status === 'Installed' ? 'bg-primary text-background' : skill.status === 'Available' ? 'bg-primary/20 text-primary' : 'bg-outline/10 text-outline'}`}>{skill.status}</span>
                        </div>
-                       <p className="text-xs text-outline leading-normal">{exp.desc}</p>
+                       <p className="text-xs text-outline leading-normal">{skill.desc}</p>
                     </div>
                  </div>
               </LaserButton>
@@ -2150,106 +2136,50 @@ const LabScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: str
   );
 };
 
-// --- Top Secret ---
-const TopSecretScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
+// --- MCP Market (formerly Top Secret) ---
+const MCPMarketScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
   return (
     <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-surface flex flex-col overflow-hidden">
        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-black/40 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-all text-error">
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">最高机密</h1>
+      <header className="fixed top-0 left-0 h-16 w-full z-50 flex items-center gap-4 px-6 bg-black/40 backdrop-blur-xl border-b border-white/5">
+        <button onClick={onBack} className="p-2 rounded-full hover:bg-white/10 transition-all text-primary">
+          <ChevronLeft size={24} />
+        </button>
+        <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">MCP 市场</h1>
+        <div className="ml-auto">
+          <ShoppingBag size={20} className="text-primary" />
         </div>
-         <Lock size={20} className="text-error" />
       </header>
-      <main className="flex-1 pt-24 px-8 flex flex-col items-center justify-center relative overflow-hidden">
-         <div className="w-full max-w-xs space-y-12 z-10">
-            <div className="text-center space-y-2">
-               <Shield size={64} className="mx-auto text-error mb-4 animate-pulse" />
-               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-error/60">Restricted Access</p>
-               <h2 className="text-3xl font-headline font-bold uppercase tracking-tight text-on-surface">已加密区域</h2>
+      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar pb-32">
+         <div className="max-w-2xl mx-auto space-y-8">
+            <div className="bg-primary/5 rounded-3xl p-8 border border-primary/20 relative overflow-hidden">
+               <div className="relative z-10">
+                  <h2 className="text-2xl font-headline font-bold text-primary mb-2">欢迎来到数字贸易港</h2>
+                  <p className="text-outline text-xs leading-relaxed max-w-xs">在这里交易高维 MCP 模组与协议包。所有的交易均通过神经凭证完成。</p>
+               </div>
+               <Target size={120} className="absolute -bottom-10 -right-10 text-primary opacity-10 rotate-12" />
             </div>
-            <div className="space-y-6">
-                <p className="text-center text-outline text-xs leading-relaxed px-4">
-                  该区域包含未公开的高维协议和个人数字存档。所有操作将产生永久性神经水印。
-                </p>
-                <div className="grid grid-cols-3 gap-4 h-48">
-                    {[1,2,3,4,5,6,7,8,9].map(i => (
-                        <div key={i} className="bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all cursor-pointer">
-                           <div className="w-1.5 h-1.5 rounded-full bg-error/40" />
-                        </div>
-                    ))}
-                </div>
-                <LaserButton onClick={() => onAction('身份验证失败: 需要生物特征注入')} className="w-full py-4 rounded-2xl bg-error/10 text-error border border-error/20 font-bold uppercase tracking-[0.2em] text-[10px]">
-                   开始验证感知序列
-                </LaserButton>
-            </div>
-         </div>
-         <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute top-1/4 -left-20 w-80 h-80 bg-error/5 rounded-full blur-[100px]" />
-            <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-error/5 rounded-full blur-[100px]" />
-         </div>
-      </main>
-    </motion.div>
-  );
-};
 
-// --- Core Architecture ---
-const CoreArchitectureScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string) => void }) => {
-  return (
-    <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
-            <ChevronLeft size={24} />
-          </button>
-          <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">核心架构</h1>
-        </div>
-      </header>
-      <main className="flex-1 pt-24 px-8 space-y-8 overflow-y-auto custom-scrollbar pb-32">
-         <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
-            {[
-              { label: '系统算力', value: '4.2 ZettaFLOPS', trend: '+12%', icon: Cpu },
-              { label: '神经密度', value: '1.2M Synapses', trend: '+5%', icon: Brain },
-              { label: '存储占用', value: '84.2PB', trend: 'Stable', icon: Database },
-              { label: '上行带宽', value: '12.5GB/s', trend: '-2%', icon: Globe },
-            ].map(stat => (
-              <div key={stat.label} className="bg-surface-container-low p-6 rounded-3xl border border-white/5 space-y-3">
-                 <div className="flex items-center justify-between">
-                    <stat.icon size={20} className="text-primary" />
-                    <span className="text-[10px] font-bold text-green-500">{stat.trend}</span>
-                 </div>
-                 <div>
-                    <p className="text-[9px] uppercase font-bold tracking-widest text-outline">{stat.label}</p>
-                    <p className="text-xl font-headline font-bold text-on-surface">{stat.value}</p>
-                 </div>
-              </div>
-            ))}
-         </div>
-         <div className="max-w-2xl mx-auto bg-surface-container-low rounded-3xl p-8 border border-white/5 space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-primary flex items-center gap-2">
-               <RotateCw size={16} className="animate-spin" />
-               实时意识同步流
-            </h3>
-            <div className="space-y-4">
-                {[1,2,3].map(i => (
-                    <div key={i} className="flex gap-4 items-center">
-                       <div className="w-1 h-8 bg-primary/20 rounded-full overflow-hidden">
-                          <motion.div animate={{ y: [-32, 32] }} transition={{ duration: 2, repeat: Infinity }} className="w-full h-4 bg-primary" />
+            <div className="grid grid-cols-2 gap-4">
+               {[
+                 { name: '量子加密包', price: '450 NCC', category: 'Security' },
+                 { name: '通感协议 2.0', price: '1200 NCC', category: 'Comm' },
+                 { name: '时空锚定器', price: '800 NCC', category: 'Logic' },
+                 { name: '混沌算力流', price: '2100 NCC', category: 'Compute' },
+               ].map(item => (
+                 <LaserButton key={item.name} onClick={() => onAction(`正在接入交易协议: ${item.name}`)} className="bg-surface-container-low p-5 rounded-2xl border border-white/5 text-left group">
+                    <p className="text-[10px] text-primary uppercase font-bold tracking-widest mb-1">{item.category}</p>
+                    <h3 className="font-bold text-sm text-on-surface mb-4">{item.name}</h3>
+                    <div className="flex items-center justify-between">
+                       <span className="font-mono text-xs font-bold text-primary">{item.price}</span>
+                       <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-background transition-all">
+                          <Plus size={14} />
                        </div>
-                       <div className="flex-1 h-3 bg-white/5 rounded-full overflow-hidden relative">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${Math.random() * 60 + 20}%` }} transition={{ duration: 1, delay: i * 0.2 }} className="h-full bg-primary/20 border-r border-primary" />
-                       </div>
-                       <span className="font-mono text-[9px] text-outline whitespace-nowrap">PROTO_X_{i*120}</span>
                     </div>
-                ))}
+                 </LaserButton>
+               ))}
             </div>
          </div>
-          <LaserButton onClick={() => onAction('核心引擎已完成深度自洽性检查')} className="max-w-2xl mx-auto w-full py-4 rounded-2xl bg-primary/5 text-primary border border-primary/20 font-bold uppercase tracking-widest text-xs">
-             运行引擎自洽性检查
-          </LaserButton>
       </main>
     </motion.div>
   );
@@ -2433,6 +2363,7 @@ export default function App() {
               onClose={() => setIsSidebarOpen(false)} 
               onLogout={handleLogout} 
               onNavigate={(view) => setCurrentView(view)}
+              onTabChange={setActiveTab}
               userProfile={userProfile} 
             />
           </motion.div>
@@ -2464,20 +2395,12 @@ export default function App() {
           />
         )}
 
-        {currentView === 'global-square' && (
-          <GlobalSquareScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        {currentView === 'skill-warehouse' && (
+          <SkillWarehouseScreen onBack={() => setCurrentView('main')} onAction={showToast} />
         )}
 
-        {currentView === 'lab' && (
-          <LabScreen onBack={() => setCurrentView('main')} onAction={showToast} />
-        )}
-
-        {currentView === 'top-secret' && (
-          <TopSecretScreen onBack={() => setCurrentView('main')} onAction={showToast} />
-        )}
-
-        {currentView === 'core-architecture' && (
-          <CoreArchitectureScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        {currentView === 'mcp-market' && (
+          <MCPMarketScreen onBack={() => setCurrentView('main')} onAction={showToast} />
         )}
 
         {currentView === 'app-settings' && (
@@ -2508,7 +2431,7 @@ export default function App() {
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
-            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] px-6 py-3 bg-on-surface text-background rounded-full font-bold text-xs shadow-2xl flex items-center gap-3 backdrop-blur-xl border border-white/10"
+            className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] px-6 py-3 bg-on-surface text-background rounded-full font-bold text-xs shadow-2xl flex items-center gap-3 backdrop-blur-xl"
           >
             {toast.type === 'success' ? <CheckCircle size={14} className="text-primary" /> : <Info size={14} className="text-primary" />}
             {toast.message}
