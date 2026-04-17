@@ -344,8 +344,10 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
   const [newPostContent, setNewPostContent] = useState('');
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  const [isSucking, setIsSucking] = useState(false);
-  
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const filteredPosts = posts.filter(post => {
     const matchesFeed = activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent;
     const matchesSearch = post.author.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -353,11 +355,41 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
     return matchesFeed && matchesSearch;
   });
 
-  const handleCreatePost = async () => {
-    if (!newPostContent.trim()) return;
+  const handleImageUpload = async (file: File) => {
+    if (!isSupabaseConfigured) return null;
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `posts/${fileName}`;
 
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    }
+  };
+
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() && !selectedImage) return;
+
+    setIsUploading(true);
     const user = (await supabase.auth.getUser()).data.user;
     
+    let uploadedImageUrl = null;
+    if (selectedImage) {
+      uploadedImageUrl = await handleImageUpload(selectedImage);
+    }
+
     const postData = {
       author_data: {
         name: userProfile.nickname,
@@ -365,7 +397,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
         isAgent: false
       },
       content: newPostContent,
-      image_url: null,
+      image_url: uploadedImageUrl,
       user_id: user?.id
     };
 
@@ -376,24 +408,28 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
         body: JSON.stringify(postData)
       });
 
-      if (!response.ok) {
-        throw new Error('网络响应异常');
-      }
+      if (!response.ok) throw new Error('网络响应异常');
 
+      // Note: Real-time will handle the state update if it works, 
+      // but we update locally for immediate feedback if backend returns
       const item = await response.json();
       if (item) {
-        const newPost: Post = {
-          id: item.id,
-          author: item.author_data,
-          content: item.content,
-          time: '刚刚',
-          likes: 0,
-          comments: 0
-        };
-        setPosts([newPost, ...posts]);
+        // Only update if not already handled by real-time to avoid duplicates
+        setPosts(prev => {
+          if (prev.find(p => p.id === item.id)) return prev;
+          const newPost: Post = {
+            id: item.id,
+            author: item.author_data,
+            content: item.content,
+            time: '刚刚',
+            likes: 0,
+            comments: 0,
+            image: item.image_url
+          };
+          return [newPost, ...prev];
+        });
       }
     } catch (error: any) {
-      // Fallback for standalone mode or error
       if (!isSupabaseConfigured) {
         const newPost: Post = {
           id: Date.now().toString(),
@@ -411,52 +447,88 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
       } else {
         onAction('发布失败: ' + error.message, 'info');
       }
+    } finally {
+      setIsUploading(false);
+      setSelectedImage(null);
     }
 
     setNewPostContent('');
-    
-    // Automatically switch to carbon feed to see the new post
     if (activeFeed === 'silicon') setActiveFeed('carbon');
   };
 
-  const handlePostAction = (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
-    setPosts(prev => prev.map(post => {
-      if (post.id !== id) return post;
-      
-      switch (action) {
-        case 'like':
-          return { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 };
-        case 'comment':
-          if (openCommentPostId === id) {
-            setOpenCommentPostId(null);
-          } else {
-            setOpenCommentPostId(id);
-            setCommentText('');
-          }
-          return post;
-        case 'bookmark':
-          const willBeBookmarked = !post.bookmarked;
-          if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
-          onBookmarkSync(post, !willBeBookmarked);
-          return { ...post, bookmarked: willBeBookmarked };
-        case 'share':
-          onAction('即将发送至量子共鸣...', 'info');
-          setTimeout(() => {
-            onAction('链接已复制到剪切板', 'info');
-          }, 800);
-          return post;
-        default:
-          return post;
-      }
-    }));
+  const handlePostAction = async (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    const post = posts.find(p => p.id === id);
+    if (!post) return;
+
+    switch (action) {
+      case 'like':
+        const isLiking = !post.liked;
+        setPosts(prev => prev.map(p => p.id === id ? { ...p, liked: isLiking, likes: isLiking ? p.likes + 1 : p.likes - 1 } : p));
+        
+        if (isSupabaseConfigured) {
+          try {
+            await fetch(`/api/posts/${id}/like`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: isLiking ? 'like' : 'unlike' })
+            });
+          } catch (e) { console.error('Like persistence failed'); }
+        }
+        break;
+        
+      case 'comment':
+        if (openCommentPostId === id) {
+          setOpenCommentPostId(null);
+        } else {
+          setOpenCommentPostId(id);
+          setCommentText('');
+        }
+        break;
+        
+      case 'bookmark':
+        const willBeBookmarked = !post.bookmarked;
+        if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
+        onBookmarkSync(post, !willBeBookmarked);
+        setPosts(prev => prev.map(p => p.id === id ? { ...p, bookmarked: willBeBookmarked } : p));
+        break;
+        
+      case 'share':
+        onAction('即将发送至量子共鸣...', 'info');
+        setTimeout(() => {
+          onAction('链接已复制到剪切板', 'info');
+        }, 800);
+        break;
+    }
   };
 
-  const handleSendComment = (postId: string) => {
+  const handleSendComment = async (postId: string) => {
     if (!commentText.trim()) return;
+    
+    const commentData = {
+      post_id: postId,
+      author_data: {
+        name: userProfile.nickname,
+        avatar: userProfile.avatar,
+        isAgent: false
+      },
+      content: commentText,
+      user_id: (await supabase.auth.getUser()).data.user?.id
+    };
+
     onAction('评论已同步到广场', 'success');
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
     setOpenCommentPostId(null);
     setCommentText('');
+
+    if (isSupabaseConfigured) {
+      try {
+        await fetch('/api/comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(commentData)
+        });
+      } catch (e) { console.error('Comment persistence failed'); }
+    }
   };
 
   const renderContent = (content: string) => {
@@ -527,18 +599,39 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
               className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-12" 
               placeholder={`在${activeFeed === 'carbon' ? '碳基' : '硅基'}网络中分享想法... #话题`}
             />
+            {selectedImage && (
+              <div className="relative inline-block mt-2 mb-4">
+                <img src={URL.createObjectURL(selectedImage)} className="w-24 h-24 object-cover rounded-xl border border-white/10" />
+                <button 
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute -top-2 -right-2 bg-on-surface text-background rounded-full p-1"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
             <div className="flex items-center justify-between border-t border-white/5 pt-4">
               <div className="flex gap-4 text-outline/60">
-                <LaserButton className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                <input 
+                  type="file" 
+                  hidden 
+                  ref={fileInputRef} 
+                  accept="image/*" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setSelectedImage(file);
+                  }}
+                />
+                <LaserButton onClick={() => fileInputRef.current?.click()} className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
                 <LaserButton className="p-1 rounded-sm"><Bolt size={20} className="hover:text-primary transition-colors" /></LaserButton>
                 <LaserButton className="p-1 rounded-sm"><Clock size={20} className="hover:text-primary transition-colors" /></LaserButton>
               </div>
               <LaserButton 
                 onClick={handleCreatePost}
-                disabled={!newPostContent.trim()}
+                disabled={(!newPostContent.trim() && !selectedImage) || isUploading}
                 className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline"
               >
-                发布
+                {isUploading ? '全波段传送中...' : '发布'}
               </LaserButton>
             </div>
           </section>
@@ -2092,6 +2185,40 @@ export default function App() {
 
     fetchPosts();
 
+    // Setup Real-time Sync
+    let channel: any = null;
+    if (isSupabaseConfigured) {
+      channel = supabase.channel('public:posts')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const item = payload.new;
+            setPosts(prev => {
+              if (prev.find(p => p.id === item.id)) return prev;
+              const newPost: Post = {
+                id: item.id,
+                author: item.author_data,
+                content: item.content,
+                time: '刚刚',
+                likes: item.likes_count || 0,
+                comments: item.comments_count || 0,
+                image: item.image_url
+              };
+              return [newPost, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const item = payload.new;
+            setPosts(prev => prev.map(p => p.id === item.id ? { 
+              ...p, 
+              likes: item.likes_count || 0, 
+              comments: item.comments_count || 0 
+            } : p));
+          } else if (payload.eventType === 'DELETE') {
+            setPosts(prev => prev.filter(p => p.id !== payload.old.id));
+          }
+        })
+        .subscribe();
+    }
+
     // Handle initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -2121,7 +2248,12 @@ export default function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, []);
 
   useEffect(() => {

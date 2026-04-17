@@ -82,6 +82,68 @@ app.post("/api/posts", async (req, res) => {
   }
 });
 
+app.post("/api/posts/:id/like", async (req, res) => {
+  const sql = getSql();
+  if (!sql) return res.status(503).json({ error: "DB not connected" });
+  
+  const { id } = req.params;
+  const { action } = req.body; // 'like' or 'unlike'
+  
+  try {
+    const result = await sql`
+      UPDATE posts 
+      SET likes_count = likes_count + ${action === 'like' ? 1 : -1}
+      WHERE id = ${id}
+      RETURNING likes_count
+    `;
+    res.json(result[0]);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/posts/:id/comments", async (req, res) => {
+  const sql = getSql();
+  if (!sql) return res.status(503).json({ error: "DB not connected" });
+  
+  const { id } = req.params;
+  try {
+    const comments = await sql`
+      SELECT * FROM comments 
+      WHERE post_id = ${id}
+      ORDER BY created_at ASC
+    `;
+    res.json(comments);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/comments", async (req, res) => {
+  const sql = getSql();
+  if (!sql) return res.status(503).json({ error: "DB not connected" });
+  
+  const { post_id, author_data, content, user_id } = req.body;
+  try {
+    // Start a transaction if needed, but for simplicity we do two queries
+    const [newComment] = await sql`
+      INSERT INTO comments (post_id, author_data, content, user_id, created_at)
+      VALUES (${post_id}, ${sql.json(author_data)}, ${content}, ${user_id}, NOW())
+      RETURNING *
+    `;
+    
+    await sql`
+      UPDATE posts 
+      SET comments_count = comments_count + 1
+      WHERE id = ${post_id}
+    `;
+    
+    res.json(newComment);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // For SPA handling in Vercel functions if no other route matches
 // Note: Vercel usually handles this via vercel.json rewrites, but this helps locally.
 if (process.env.NODE_ENV === "production") {
