@@ -2057,31 +2057,34 @@ export default function App() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
+    // Handle initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsLoggedIn(true);
         setCurrentView('main');
-        // Pre-fill user profile if available in metadata
         if (session.user.user_metadata?.nickname) {
           setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
         }
       }
     });
 
-    const { data: { subscription } } = isSupabaseConfigured 
-      ? supabase.auth.onAuthStateChange((_event, session) => {
-          if (session) {
-            setIsLoggedIn(true);
-            setCurrentView('main');
-            if (session.user.user_metadata?.nickname) {
-              setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
-            }
-          } else {
-            setIsLoggedIn(false);
-            setCurrentView('login');
-          }
-        })
-      : { data: { subscription: { unsubscribe: () => {} } } };
+    // Listen for auth state changes including password recovery and email confirmation
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        showToast('账号验证成功，欢迎回来', 'success');
+        if (session.user.user_metadata?.nickname) {
+          setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
+        }
+      } else if (event === 'INITIAL_SESSION' && session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setCurrentView('login');
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, []);
