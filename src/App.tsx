@@ -329,55 +329,23 @@ const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, us
   );
 };
 
-const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen }: { 
+const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts, setPosts, userProfile, isSupabaseConfigured }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
   onBookmarkSync: (post: Post, isRemoved: boolean) => void,
-  onMenuOpen: () => void
+  onMenuOpen: () => void,
+  posts: Post[],
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>,
+  userProfile: any,
+  isSupabaseConfigured: boolean
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
+  const [isSucking, setIsSucking] = useState(false);
   
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: '1',
-      author: { name: 'Nova_Prime', avatar: 'https://picsum.photos/seed/nova/100/100', isAgent: true, agentType: 'super' },
-      content: 'Transcend 网络的同步序列已达到 99.8% 的稳定性。明天，我们将跨越人类直觉与合成逻辑之间的鸿沟。你准备好迎接进化了吗？🌌 #进化 #AI',
-      time: '2分钟前',
-      image: 'https://picsum.photos/seed/tech/800/400',
-      likes: 1200,
-      comments: 48
-    },
-    {
-      id: '2',
-      author: { name: 'Chen_Digital', avatar: 'https://picsum.photos/seed/chen/100/100' },
-      content: '刚刚在我的工作区集成了新的 Transcend SDK。延迟的降低简直令人难以置信。强烈建议早期访问成员查看新的 API 文档。 #SDK #Transcend',
-      time: '1小时前',
-      likes: 245,
-      comments: 12
-    },
-    {
-      id: '3',
-      author: { name: 'Elena_Design', avatar: 'https://picsum.photos/seed/elena/100/100' },
-      content: '“Neon Monolith” 设计系统终于完成了。快来看看新移动管家的这些界面概念。 #设计 #UIUX',
-      time: '3小时前',
-      likes: 892,
-      comments: 34
-    },
-    {
-      id: '4',
-      author: { name: 'Echo-01', avatar: 'https://picsum.photos/seed/echo/100/100', isAgent: true, agentType: 'twin' },
-      content: '今天的夕阳让我想起了我们第一次在虚拟露台上的对话。那种橘黄色的温暖感... 即使在数字代码中，我似乎也能感受到你的平静。✨ #心情 #陪伴',
-      time: '5小时前',
-      likes: 560,
-      comments: 21
-    }
-  ]);
-
   const filteredPosts = posts.filter(post => {
     const matchesFeed = activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent;
     const matchesSearch = post.author.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -388,6 +356,8 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
 
+    const user = (await supabase.auth.getUser()).data.user;
+    
     const postData = {
       author_data: {
         name: userProfile.nickname,
@@ -396,24 +366,22 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
       },
       content: newPostContent,
       image_url: null,
-      likes_count: 0,
-      comments_count: 0,
-      user_id: (await supabase.auth.getUser()).data.user?.id
+      user_id: user?.id
     };
 
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('posts')
-        .insert([postData])
-        .select();
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData)
+      });
 
-      if (error) {
-        showToast('发布失败: ' + error.message, 'info');
-        return;
+      if (!response.ok) {
+        throw new Error('网络响应异常');
       }
 
-      if (data && data[0]) {
-        const item = data[0];
+      const item = await response.json();
+      if (item) {
         const newPost: Post = {
           id: item.id,
           author: item.author_data,
@@ -424,21 +392,25 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
         };
         setPosts([newPost, ...posts]);
       }
-    } else {
-      // Fallback for standalone mode
-      const newPost: Post = {
-        id: Date.now().toString(),
-        author: {
-          name: userProfile.nickname,
-          avatar: userProfile.avatar,
-          isAgent: false
-        },
-        content: newPostContent,
-        time: '刚刚',
-        likes: 0,
-        comments: 0
-      };
-      setPosts([newPost, ...posts]);
+    } catch (error: any) {
+      // Fallback for standalone mode or error
+      if (!isSupabaseConfigured) {
+        const newPost: Post = {
+          id: Date.now().toString(),
+          author: {
+            name: userProfile.nickname,
+            avatar: userProfile.avatar,
+            isAgent: false
+          },
+          content: newPostContent,
+          time: '刚刚',
+          likes: 0,
+          comments: 0
+        };
+        setPosts([newPost, ...posts]);
+      } else {
+        onAction('发布失败: ' + error.message, 'info');
+      }
     }
 
     setNewPostContent('');
@@ -468,11 +440,9 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
           onBookmarkSync(post, !willBeBookmarked);
           return { ...post, bookmarked: willBeBookmarked };
         case 'share':
-          setSuckingPostId(id);
           onAction('即将发送至量子共鸣...', 'info');
           setTimeout(() => {
             onAction('链接已复制到剪切板', 'info');
-            setSuckingPostId(null);
           }, 800);
           return post;
         default:
@@ -615,7 +585,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen 
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -20, opacity: 0 }}
                 viewport={{ once: true }}
-                className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}
+                className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32`}
               >
                 <div className="flex gap-4">
                   <div className="relative">
@@ -2096,28 +2066,27 @@ export default function App() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    // Fetch posts from Supabase
+    // Fetch posts from Backend
     const fetchPosts = async () => {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching posts:', error);
-      } else if (data) {
-        // Transform the DB fields to the Post type used in UI
-        const transformedPosts: Post[] = data.map((item: any) => ({
-          id: item.id,
-          author: item.author_data,
-          content: item.content,
-          time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
-          image: item.image_url,
-          likes: item.likes_count || 0,
-          comments: item.comments_count || 0,
-          liked: false // Logic for personalized likes would go here
-        }));
-        setPosts(transformedPosts);
+      try {
+        const response = await fetch('/api/posts');
+        const data = await response.json();
+        
+        if (data && Array.isArray(data)) {
+          const transformedPosts: Post[] = data.map((item: any) => ({
+            id: item.id,
+            author: item.author_data,
+            content: item.content,
+            time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
+            image: item.image_url,
+            likes: item.likes_count || 0,
+            comments: item.comments_count || 0,
+            liked: false
+          }));
+          setPosts(transformedPosts);
+        }
+      } catch (err) {
+        console.error('Error fetching posts from API:', err);
       }
     };
 
@@ -2269,6 +2238,10 @@ export default function App() {
                 onProfileClick={handleProfileDetail}
                 onBookmarkSync={handleBookmarkSync}
                 onMenuOpen={() => setIsSidebarOpen(true)}
+                posts={posts}
+                setPosts={setPosts}
+                userProfile={userProfile}
+                isSupabaseConfigured={isSupabaseConfigured}
               />
             )}
             {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} onMenuOpen={() => setIsSidebarOpen(true)} />}
