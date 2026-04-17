@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useRef, ReactNode, MouseEvent } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import { 
   Compass, 
   MessageCircle, 
@@ -61,6 +62,16 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'motion/react';
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- Types ---
 type AppTab = 'square' | 'messages' | 'contacts' | 'me';
@@ -207,7 +218,18 @@ const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, onTabChan
 
 // --- Screens ---
 
-const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToRegister: () => void }) => {
+const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: (email: string, password: string) => void, onGoToRegister: () => void }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email && password) {
+      onLogin(email, password);
+    }
+  };
+
   return (
     <motion.div 
       initial={{ opacity: 0 }} 
@@ -231,13 +253,15 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
         </header>
 
         <section className="space-y-8">
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">手机号</label>
+              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">邮箱</label>
               <div className="relative">
                 <input 
-                  type="tel" 
-                  placeholder="+86 1XX XXXX XXXX"
+                  type="email" 
+                  placeholder="请输入邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
                 <Smartphone size={18} className="absolute right-4 top-4 text-outline" />
@@ -246,25 +270,33 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
             <div className="space-y-2">
               <div className="flex justify-between items-end ml-1">
                 <label className="text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold">密码</label>
-                <button className="text-[10px] uppercase tracking-widest text-primary hover:text-primary transition-colors font-bold">忘记密码</button>
+                <button type="button" className="text-[10px] uppercase tracking-widest text-primary hover:text-primary transition-colors font-bold">忘记密码</button>
               </div>
               <div className="relative">
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
-                <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-4 text-outline"
+                >
+                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                </button>
               </div>
             </div>
-          </div>
 
-          <button 
-            onClick={onLogin}
-            className="w-full bg-on-surface text-background font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-          >
-            登录
-          </button>
+            <button 
+              type="submit"
+              className="w-full bg-on-surface text-background font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+            >
+              登录
+            </button>
+          </form>
 
           <div className="text-center">
             <span className="text-xs text-on-surface-variant">还没有账号？</span>
@@ -292,7 +324,21 @@ const LoginScreen = ({ onLogin, onGoToRegister }: { onLogin: () => void, onGoToR
   );
 };
 
-const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack: () => void }) => {
+const RegisterScreen = ({ onRegister, onBack }: { onRegister: (email: string, password: string) => void, onBack: () => void }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email && password && password === confirmPassword) {
+      onRegister(email, password);
+    } else if (password !== confirmPassword) {
+      alert('密码确认不一致');
+    }
+  };
+
   return (
     <motion.div 
       initial={{ x: '100%' }} 
@@ -316,41 +362,54 @@ const RegisterScreen = ({ onRegister, onBack }: { onRegister: () => void, onBack
         </header>
 
         <section className="space-y-8">
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">手机号</label>
+              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">邮箱</label>
               <div className="relative">
                 <input 
-                  type="tel" 
-                  placeholder="+86 1XX XXXX XXXX"
+                  type="email" 
+                  placeholder="请输入邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
-                <button className="absolute right-4 top-4 text-xs font-bold text-primary hover:opacity-80">获取验证码</button>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">验证码</label>
-              <input 
-                type="text" 
-                placeholder="请输入6位验证码"
-                className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
-              />
             </div>
             <div className="space-y-2">
               <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">设置密码</label>
               <div className="relative">
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
                 />
-                <EyeOff size={18} className="absolute right-4 top-4 text-outline" />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-4 text-outline"
+                >
+                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                </button>
               </div>
             </div>
-          </div>
+            <div className="space-y-2">
+              <label className="block text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold ml-1">确认密码</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-surface-container-lowest border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-4 px-4 transition-all duration-300 rounded-lg"
+                />
+              </div>
+            </div>
+          </form>
 
           <button 
-            onClick={onRegister}
+            onClick={handleSubmit}
             className="w-full bg-primary text-on-primary font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(29,155,240,0.2)]"
           >
             注册并加入
@@ -2077,6 +2136,8 @@ export default function App() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (toast) {
@@ -2088,6 +2149,46 @@ export default function App() {
   const showToast = (message: string, type: 'success' | 'info' = 'info') => {
     setToast({ message, type });
   };
+
+  // Check user session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setUser(session.user);
+          setIsLoggedIn(true);
+          setCurrentView('main');
+        } else {
+          setIsLoggedIn(false);
+          setCurrentView('login');
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+        setIsLoggedIn(false);
+        setCurrentView('login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUser(session.user);
+        setIsLoggedIn(true);
+        setCurrentView('main');
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
+        setCurrentView('login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
 
@@ -2114,10 +2215,53 @@ export default function App() {
 
   const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentView('login');
-    setIsSidebarOpen(false);
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      if (error) {
+        showToast('登录失败: ' + error.message, 'info');
+      } else {
+        showToast('登录成功', 'success');
+      }
+    } catch (error) {
+      showToast('登录失败: 网络错误', 'info');
+    }
+  };
+
+  const handleRegister = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+      });
+      if (error) {
+        showToast('注册失败: ' + error.message, 'info');
+      } else {
+        showToast('注册成功，请登录', 'success');
+        setCurrentView('login');
+      }
+    } catch (error) {
+      showToast('注册失败: 网络错误', 'info');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        showToast('登出失败: ' + error.message, 'info');
+      } else {
+        setIsLoggedIn(false);
+        setCurrentView('login');
+        setIsSidebarOpen(false);
+        showToast('已安全登出', 'success');
+      }
+    } catch (error) {
+      showToast('登出失败: 网络错误', 'info');
+    }
   };
 
   const handleProfileDetail = (id: string) => {
@@ -2221,6 +2365,20 @@ export default function App() {
             profileId={selectedProfileId} 
             onBack={() => setCurrentView('main')} 
             onChatClick={() => setCurrentView('chat')}
+          />
+        )}
+
+        {currentView === 'login' && (
+          <LoginScreen 
+            onLogin={handleLogin} 
+            onGoToRegister={() => setCurrentView('register')}
+          />
+        )}
+
+        {currentView === 'register' && (
+          <RegisterScreen 
+            onRegister={handleRegister} 
+            onBack={() => setCurrentView('login')}
           />
         )}
       </AnimatePresence>
