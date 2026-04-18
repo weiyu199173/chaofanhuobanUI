@@ -75,12 +75,13 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('count', { count: 'exact', head: true });
+        .select('id');
       
       if (error) throw error;
       
-      updateStep('users-table', 'success', `✅ users 表存在，当前记录数: ${data}`);
-      addLog(`✅ users 表正常，有 ${data} 条记录`);
+      const count = data ? data.length : 0;
+      updateStep('users-table', 'success', `✅ users 表存在，当前记录数: ${count}`);
+      addLog(`✅ users 表正常，有 ${count} 条记录`);
     } catch (error: any) {
       updateStep('users-table', 'error', `❌ ${error.message}`, error);
       addLog(`❌ users 表错误: ${error.message}`);

@@ -48,19 +48,18 @@ export class UserService {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
 
       if (error) {
         console.error('获取用户资料失败:', error);
         return null;
       }
 
-      if (data) {
+      if (data && data.length > 0) {
         // 确保字段兼容
         const profile: UserProfile = {
-          ...data,
-          fullBio: data.full_bio || data.fullBio,
+          ...data[0],
+          fullBio: data[0].full_bio || data[0].fullBio,
         };
         return profile;
       }
@@ -106,15 +105,16 @@ export class UserService {
       console.log('   数据:', dbData);
 
       // 先检查记录是否存在
-      const { data: existingRecord, error: checkError } = await supabase
+      const { data: existingRecords, error: checkError } = await supabase
         .from('users')
         .select('id')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         console.error('❌ 检查用户记录失败:', checkError);
       }
+      
+      const existingRecord = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
 
       let resultError = null;
       
