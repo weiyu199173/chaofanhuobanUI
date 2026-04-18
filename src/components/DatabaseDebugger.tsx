@@ -128,26 +128,16 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
     updateStep('insert-test', 'running');
     if (userId) {
       try {
-        const testData = {
-          nickname: '测试用户_' + Date.now(),
-          bio: '这是一条测试数据',
-          fullBio: '完整的测试个人简介',
-        };
+        const testNickname = '测试用户_' + Date.now();
         
-        addLog(`📝 正在保存测试数据: ${JSON.stringify(testData)}`);
+        addLog(`📝 正在保存测试数据，新昵称: ${testNickname}`);
+        addLog('📤 正在调用 Supabase update API...');
         
-        // 直接用 supabase 测试，不走 UserService，看看具体错误
-        const data = {
-          id: userId,
-          nickname: testData.nickname,
-          avatar: testData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-          bio: testData.bio || '',
-        };
-        
-        console.log('📤 直接测试 Supabase 写入:', data);
-        addLog('📤 正在直接调用 Supabase API...');
-        
-        const { error } = await supabase.from('users').upsert(data);
+        // 直接用 update 测试，因为记录已经存在了
+        const { error } = await supabase
+          .from('users')
+          .update({ nickname: testNickname })
+          .eq('id', userId);
         
         if (error) {
           console.error('❌ Supabase 错误:', error);
@@ -163,7 +153,7 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
           // 6. 验证更新
           updateStep('update-test', 'running');
           const verifyProfile = await UserService.getUserProfile(userId);
-          if (verifyProfile && verifyProfile.nickname === testData.nickname) {
+          if (verifyProfile && verifyProfile.nickname === testNickname) {
             updateStep('update-test', 'success', '✅ 数据读取验证通过！');
             addLog('✅ 数据读取验证通过！');
             addLog(`👤 读取到用户: ${verifyProfile.nickname}`);
