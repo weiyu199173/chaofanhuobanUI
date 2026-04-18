@@ -77,19 +77,21 @@ export class UserService {
    */
   static async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<boolean> {
     if (!isSupabaseConfigured) {
+      console.log('⚠️ Supabase 未配置，跳过服务器保存');
+      return false;
+    }
+
+    if (!userId) {
+      console.error('❌ 没有用户ID，无法保存');
       return false;
     }
 
     try {
-      // 转换字段名：fullBio -> full_bio, accountId -> accountId
+      // 转换字段名：fullBio -> full_bio
       const dbData: any = { ...profileData };
       if (dbData.fullBio !== undefined) {
         dbData.full_bio = dbData.fullBio;
         delete dbData.fullBio;
-      }
-      // 确保使用正确的字段名
-      if (dbData.accountId !== undefined) {
-        dbData.accountId = dbData.accountId;
       }
       // 删除不应更新的字段
       delete dbData.uid;
@@ -99,44 +101,63 @@ export class UserService {
       
       dbData.updated_at = new Date().toISOString();
 
-      console.log('正在更新用户资料:', userId, dbData);
+      console.log('🔄 正在更新用户资料...');
+      console.log('   用户ID:', userId);
+      console.log('   数据:', dbData);
 
-      // 先尝试更新
-      const { error: updateError } = await supabase
+      // 先检查记录是否存在
+      const { data: existingRecord, error: checkError } = await supabase
         .from('users')
-        .update(dbData)
-        .eq('id', userId);
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-      if (updateError) {
-        console.error('更新用户资料失败:', updateError);
-        // 如果更新失败，尝试插入新记录
-        console.log('尝试创建新用户记录...');
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: userId,
-            nickname: dbData.nickname || '用户',
-            avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-            bio: dbData.bio || '',
-            full_bio: dbData.full_bio || '',
-            gender: dbData.gender || '',
-            phone: dbData.phone || '',
-            accountId: dbData.accountId || '',
-            region: dbData.region || '',
-          });
-          
-        if (insertError) {
-          console.error('创建用户记录也失败:', insertError);
-          return false;
-        }
-        console.log('✅ 用户记录创建成功');
-        return true;
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ 检查用户记录失败:', checkError);
       }
 
-      console.log('✅ 用户资料更新成功');
+      let resultError = null;
+      
+      if (existingRecord) {
+        console.log('📝 记录存在，执行更新...');
+        const { error } = await supabase
+          .from('users')
+          .update(dbData)
+          .eq('id', userId);
+        resultError = error;
+      } else {
+        console.log('🆕 记录不存在，创建新记录...');
+        const insertData = {
+          id: userId,
+          nickname: dbData.nickname || '用户',
+          avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+          bio: dbData.bio || '',
+          full_bio: dbData.full_bio || '',
+          gender: dbData.gender || '',
+          phone: dbData.phone || '',
+          accountId: dbData.accountId || '',
+          region: dbData.region || '',
+        };
+        console.log('插入数据:', insertData);
+        
+        const { error } = await supabase
+          .from('users')
+          .insert(insertData);
+        resultError = error;
+      }
+
+      if (resultError) {
+        console.error('❌ 数据库操作失败:', resultError);
+        console.error('   错误代码:', resultError.code);
+        console.error('   错误信息:', resultError.message);
+        console.error('   详细:', resultError);
+        return false;
+      }
+
+      console.log('✅ 用户资料保存成功！');
       return true;
     } catch (error) {
-      console.error('更新用户资料出错:', error);
+      console.error('💥 更新用户资料异常:', error);
       return false;
     }
   }

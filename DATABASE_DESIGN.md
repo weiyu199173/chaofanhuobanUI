@@ -30,25 +30,33 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own profile" 
+-- 简化的 RLS 策略（用于调试）
+CREATE POLICY "Enable all for authenticated users" 
     ON public.users 
-    FOR SELECT 
-    USING (auth.uid() = id);
+    FOR ALL
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Users can view public profiles" 
-    ON public.users 
-    FOR SELECT 
-    USING (true);
-
-CREATE POLICY "Users can update their own profile" 
-    ON public.users 
-    FOR UPDATE 
-    USING (auth.uid() = id);
-
-CREATE POLICY "Authenticated users can insert their own profile" 
-    ON public.users 
-    FOR INSERT 
-    WITH CHECK (auth.uid() = id);
+-- 更精细的 RLS 策略（如果上面的简化策略工作正常，可以启用这些）
+-- CREATE POLICY "Users can view their own profile" 
+--     ON public.users 
+--     FOR SELECT 
+--     USING (auth.uid() = id);
+-- 
+-- CREATE POLICY "Users can view public profiles" 
+--     ON public.users 
+--     FOR SELECT 
+--     USING (true);
+-- 
+-- CREATE POLICY "Users can update their own profile" 
+--     ON public.users 
+--     FOR UPDATE 
+--     USING (auth.uid() = id);
+-- 
+-- CREATE POLICY "Authenticated users can insert their own profile" 
+--     ON public.users 
+--     FOR INSERT 
+--     WITH CHECK (auth.uid() = id);
 
 CREATE INDEX IF NOT EXISTS idx_users_nickname ON public.users(nickname);
 ```
