@@ -86,72 +86,47 @@ export class UserService {
     }
 
     try {
-      // 转换字段名：fullBio -> full_bio
-      const dbData: any = { ...profileData };
-      if (dbData.fullBio !== undefined) {
-        dbData.full_bio = dbData.fullBio;
-        delete dbData.fullBio;
-      }
-      // 删除不应更新的字段
-      delete dbData.uid;
-      delete dbData.isAgent;
-      delete dbData.type;
-      delete dbData.id;
-      
-      dbData.updated_at = new Date().toISOString();
-
       console.log('🔄 正在更新用户资料...');
       console.log('   用户ID:', userId);
-      console.log('   数据:', dbData);
+      
+      // 先尝试插入最简单的数据
+      const simpleData = {
+        id: userId,
+        nickname: profileData.nickname || '用户',
+        avatar: profileData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+        bio: profileData.bio || '',
+        full_bio: profileData.fullBio || '',
+        gender: profileData.gender || '',
+        phone: profileData.phone || '',
+        accountId: profileData.accountId || '',
+        region: profileData.region || '',
+      };
 
-      // 先检查记录是否存在
-      const { data: existingRecords, error: checkError } = await supabase
+      console.log('📤 尝试插入数据:', simpleData);
+
+      // 先用简单插入，不检查是否存在
+      let { error } = await supabase
         .from('users')
-        .select('id')
-        .eq('id', userId);
+        .insert(simpleData);
 
-      if (checkError) {
-        console.error('❌ 检查用户记录失败:', checkError);
-      }
-      
-      const existingRecord = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-      let resultError = null;
-      
-      if (existingRecord) {
-        console.log('📝 记录存在，执行更新...');
-        const { error } = await supabase
-          .from('users')
-          .update(dbData)
-          .eq('id', userId);
-        resultError = error;
-      } else {
-        console.log('🆕 记录不存在，创建新记录...');
-        const insertData = {
-          id: userId,
-          nickname: dbData.nickname || '用户',
-          avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-          bio: dbData.bio || '',
-          full_bio: dbData.full_bio || '',
-          gender: dbData.gender || '',
-          phone: dbData.phone || '',
-          accountId: dbData.accountId || '',
-          region: dbData.region || '',
-        };
-        console.log('插入数据:', insertData);
+      // 如果插入失败（可能是已存在），就尝试更新
+      if (error) {
+        console.log('⚠️ 插入失败，可能已存在，尝试更新...');
+        console.log('错误:', error);
         
-        const { error } = await supabase
+        // 先删除id字段
+        const updateData = { ...simpleData };
+        delete updateData.id;
+        
+        const { error: updateError } = await supabase
           .from('users')
-          .insert(insertData);
-        resultError = error;
-      }
-
-      if (resultError) {
-        console.error('❌ 数据库操作失败:', resultError);
-        console.error('   错误代码:', resultError.code);
-        console.error('   错误信息:', resultError.message);
-        console.error('   详细:', resultError);
-        return false;
+          .update(updateData)
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('❌ 更新也失败:', updateError);
+          return false;
+        }
       }
 
       console.log('✅ 用户资料保存成功！');
