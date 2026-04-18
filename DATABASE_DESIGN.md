@@ -484,24 +484,32 @@ VITE_SUPABASE_ANON_KEY=your-anon-public-key-here
 
 ## 实时订阅设置
 
-### 🔄 启用实时功能
+### ⚠️ 重要提示
+**即使不设置实时功能，应用也完全可以正常使用！** 应用会自动降级到手动刷新模式。
 
-所有表都支持 Postgres 实时订阅，需要在 Supabase 仪表板中启用：
+---
 
-#### 步骤 1：进入复制设置
+### 🔄 启用实时功能（可选但推荐）
+
+#### 方式 1：通过 Publications（新版界面）
 1. 进入 **Supabase 项目**
-2. 点击左侧菜单 **Database** → **Replication**
-
-#### 步骤 2：启用表的实时功能
-1. 在 **Replication** 页面找到 **Supabase Realtime** 部分
-2. 点击 **Manage realtime** 或 **Tables** 按钮
-3. 勾选以下表旁边的开关：
+2. 点击左侧菜单 **Database** → **Publications**
+3. 找到 `supabase_realtime` 这个 publication
+4. 点击编辑，添加需要实时同步的表：
    - ✅ `public.posts`
    - ✅ `public.comments`
    - ✅ `public.likes`
    - ✅ `public.friendships`
    - ✅ `public.users` (可选)
    - ✅ `public.agents` (可选)
+
+#### 方式 2：通过 Database Webhooks
+1. 点击左侧菜单 **Database** → **Database Webhooks**
+2. 这里可以设置特定表变更时触发 webhook
+
+#### 方式 3：旧版界面（Replication）
+1. 点击左侧菜单 **Database** → **Replication**（在 PLATFORM 部分）
+2. 找到 **Supabase Realtime** 部分进行配置
 
 #### 步骤 3：配置订阅事件（可选）
 在表配置中可以选择监听哪些事件：
