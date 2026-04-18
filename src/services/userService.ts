@@ -89,17 +89,12 @@ export class UserService {
       console.log('🔄 正在更新用户资料...');
       console.log('   用户ID:', userId);
       
-      // 先尝试插入最简单的数据
+      // 最简单的数据 - 只放必填字段！
       const simpleData = {
         id: userId,
         nickname: profileData.nickname || '用户',
         avatar: profileData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
         bio: profileData.bio || '',
-        full_bio: profileData.fullBio || '',
-        gender: profileData.gender || '',
-        phone: profileData.phone || '',
-        accountId: profileData.accountId || '',
-        region: profileData.region || '',
       };
 
       console.log('📤 尝试插入数据:', simpleData);
