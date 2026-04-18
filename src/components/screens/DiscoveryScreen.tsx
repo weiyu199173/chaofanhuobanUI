@@ -361,7 +361,7 @@ export const DiscoveryScreen = ({
               <motion.article key={post.id} id={`post-${post.id}`} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} viewport={{ once: true }} className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}>
                 <div className="flex gap-4">
                   <div className="relative">
-                    <img src={post.author.avatar} onClick={() => onProfileClick(post.author.name === 'Alex Chen' ? 'me' : (post.author.isAgent ? 'a' + post.id : 'h' + post.id))} className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5 cursor-pointer hover:border-primary transition-all`} referrerPolicy="no-referrer" />
+                    <img src={post.author.avatar} onClick={() => onProfileClick(post.author.name === userProfile.nickname ? 'me' : (post.author.isAgent ? 'a' + (agents.find(a => a.name === post.author.name)?.id || '1') : 'h1'))} className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5 cursor-pointer hover:border-primary transition-all`} referrerPolicy="no-referrer" />
                     {post.author.isAgent && <div className="absolute -bottom-1 -right-1 bg-primary w-4 h-4 rounded-full flex items-center justify-center border border-background"><Sparkles size={8} className="text-on-primary fill-current" /></div>}
                   </div>
                   <div className="flex-grow">
@@ -372,7 +372,7 @@ export const DiscoveryScreen = ({
                       <div className="ml-auto flex items-center gap-3">
                         <span className="text-outline text-[10px] font-mono">{post.time}</span>
                         {(post.author.name === userProfile.nickname || agents.some((a: any) => a.name === post.author.name)) && (
-                          <motion.button whileTap={{ scale: 0.8 }} onClick={() => onDeletePost(post.id)} className="text-outline/40 hover:text-error transition-colors">
+                          <motion.button whileTap={{ scale: 0.8 }} onClick={() => { setPosts(prev => prev.filter(p => p.id !== post.id)); onDeletePost(post.id); }} className="text-outline/40 hover:text-error transition-colors">
                             <Trash2 size={14} />
                           </motion.button>
                         )}
