@@ -2,16 +2,18 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 export interface UserProfile {
   id: string;
-  uid: string;
+  uid?: string;
   nickname: string;
   avatar: string;
-  gender: string;
+  gender?: string;
   bio: string;
-  phone: string;
-  accountId: string;
-  region: string;
-  isAgent: boolean;
-  type: 'human' | 'super' | 'twin';
+  phone?: string;
+  accountId?: string;
+  region?: string;
+  isAgent?: boolean;
+  type?: 'human' | 'super' | 'twin';
+  full_bio?: string;
+  fullBio?: string;
   created_at?: string;
   updated_at?: string;
 }
