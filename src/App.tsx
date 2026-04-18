@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, Info } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import './lib/supabase-test';
 
 import { AppTab, AppView, Post, UserProfile as UserProfileType, ContactProfile } from './types';
 import { BottomNavBar, SideNavigation } from './components/layout/Navigation';

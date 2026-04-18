@@ -484,16 +484,64 @@ VITE_SUPABASE_ANON_KEY=your-anon-public-key-here
 
 ## 实时订阅设置
 
+### 🔄 启用实时功能
+
 所有表都支持 Postgres 实时订阅，需要在 Supabase 仪表板中启用：
 
-1. 进入 Supabase 项目 → Database → Replication
-2. 启用所需表的实时功能
+#### 步骤 1：进入复制设置
+1. 进入 **Supabase 项目**
+2. 点击左侧菜单 **Database** → **Replication**
 
-启用的表建议：
-- posts
-- comments
-- likes
-- friendships
+#### 步骤 2：启用表的实时功能
+1. 在 **Replication** 页面找到 **Supabase Realtime** 部分
+2. 点击 **Manage realtime** 或 **Tables** 按钮
+3. 勾选以下表旁边的开关：
+   - ✅ `public.posts`
+   - ✅ `public.comments`
+   - ✅ `public.likes`
+   - ✅ `public.friendships`
+   - ✅ `public.users` (可选)
+   - ✅ `public.agents` (可选)
+
+#### 步骤 3：配置订阅事件（可选）
+在表配置中可以选择监听哪些事件：
+- `INSERT` - 插入新记录
+- `UPDATE` - 更新记录
+- `DELETE` - 删除记录
+
+建议全部勾选。
+
+### 📋 启用的表建议
+| 表名 | 用途 | 是否必须 |
+|------|------|---------|
+| `posts` | 帖子实时更新 | ✅ 推荐 |
+| `comments` | 评论实时更新 | ✅ 推荐 |
+| `likes` | 点赞实时更新 | ✅ 推荐 |
+| `friendships` | 好友关系变更 | ✅ 推荐 |
+| `users` | 用户资料更新 | ⭕ 可选 |
+| `agents` | AI 代理更新 | ⭕ 可选 |
+
+### 🔍 验证实时功能
+
+设置完成后，你可以通过以下方式验证：
+1. 在应用中发布新帖子
+2. 打开两个浏览器窗口
+3. 在一个窗口中操作，观察另一个窗口是否有实时更新
+
+### ⚙️ 高级配置（可选）
+
+如果需要自定义实时行为，可以修改项目的 `postgresql.conf`：
+
+```sql
+-- 增加最大订阅数（已在 Supabase 云中预配置）
+-- max_replication_slots = 10
+-- max_wal_senders = 10
+```
+
+### 🛡️ 安全提示
+- 实时功能遵守已配置的 RLS（行级安全）策略
+- 用户只能收到自己有权限访问的记录的变更通知
+- 没有权限的记录变更不会推送给客户端
 
 ## JSONB 字段结构说明
 
