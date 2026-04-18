@@ -22,6 +22,7 @@ import { UserService } from './services/userService';
 import { FriendService } from './services/friendService';
 import { PostService } from './services/postService';
 import { ContactService } from './services/contactService';
+import { DatabaseDebugger } from './components/DatabaseDebugger';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -32,6 +33,7 @@ export default function App() {
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDebugger, setShowDebugger] = useState(false);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [allContacts, setAllContacts] = useState<ContactProfile[]>(mockProfiles);
@@ -389,13 +391,14 @@ export default function App() {
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
             <SideNavigation 
-              isOpen={isSidebarOpen} 
-              onClose={() => setIsSidebarOpen(false)} 
-              onLogout={handleLogout} 
-              onNavigate={(view) => setCurrentView(view)}
-              onTabChange={setActiveTab}
-              userProfile={userProfile} 
-            />
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+            onLogout={handleLogout} 
+            onNavigate={(view) => setCurrentView(view)}
+            onTabChange={setActiveTab}
+            userProfile={userProfile}
+            onOpenDebugger={() => setShowDebugger(true)}
+          />
           </motion.div>
         )}
 
@@ -503,6 +506,11 @@ export default function App() {
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[10%] left-[-5%] w-[40%] h-[40%] bg-primary-container/5 blur-[100px] rounded-full" />
       </div>
+
+      {/* 数据库诊断工具 */}
+      {showDebugger && (
+        <DatabaseDebugger onClose={() => setShowDebugger(false)} />
+      )}
     </div>
   );
 }
