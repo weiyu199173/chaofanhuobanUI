@@ -135,9 +135,28 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
         };
         
         addLog(`📝 正在保存测试数据: ${JSON.stringify(testData)}`);
-        const success = await UserService.updateUserProfile(userId, testData);
         
-        if (success) {
+        // 直接用 supabase 测试，不走 UserService，看看具体错误
+        const data = {
+          id: userId,
+          nickname: testData.nickname,
+          avatar: testData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+          bio: testData.bio || '',
+        };
+        
+        console.log('📤 直接测试 Supabase 写入:', data);
+        addLog('📤 正在直接调用 Supabase API...');
+        
+        const { error } = await supabase.from('users').upsert(data);
+        
+        if (error) {
+          console.error('❌ Supabase 错误:', error);
+          const errorMsg = `❌ ${error.code}: ${error.message}`;
+          updateStep('insert-test', 'error', errorMsg, error);
+          addLog(errorMsg);
+          addLog(`📋 完整错误: ${JSON.stringify(error)}`);
+          updateStep('update-test', 'error', '跳过');
+        } else {
           updateStep('insert-test', 'success', '✅ 数据保存成功！');
           addLog('✅ 数据库写入测试成功！');
           
@@ -153,10 +172,6 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
             addLog('❌ 数据验证失败');
             addLog(`📊 verifyProfile: ${JSON.stringify(verifyProfile)}`);
           }
-        } else {
-          updateStep('insert-test', 'error', '❌ 数据保存失败 - 请检查浏览器控制台的详细错误');
-          updateStep('update-test', 'error', '跳过');
-          addLog('❌ 数据库写入失败');
         }
       } catch (error: any) {
         updateStep('insert-test', 'error', `❌ ${error.message}`, error);
