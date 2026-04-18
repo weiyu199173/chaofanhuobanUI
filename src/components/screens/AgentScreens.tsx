@@ -2,22 +2,13 @@ import React from 'react';
 import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick }: { 
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts }: { 
   profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
+  allContacts: any[];
 }) => {
-  const allProfiles = [
-    { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', status: 'Active', lv: 9, syncRate: 98, type: 'super', bio: 'Transcend 核心逻辑架构，高维执行伙伴。', traits: ['高效', '专业', '严谨'], model: 'TP-Flux-Alpha v4' },
-    { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', status: 'Active', lv: 14, syncRate: 99.8, type: 'twin', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。', traits: ['温顺', '感性', '共情'], model: 'TP-Ego-Beta v2' },
-    { id: 'a3', name: 'Logic Weaver', avatar: 'https://picsum.photos/seed/logic/100/100', status: 'Training', lv: 5, syncRate: 45, type: 'super', bio: '数据处理与并发逻辑优化专家。', traits: ['冷静', '极简'], model: 'TP-Core-Gamma' },
-    { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', bio: '数字生命架构师', fullBio: '致力于研究硅基文明与人类情感的边界，Transcend 早期参与者。', type: 'human' },
-    { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', bio: 'UI/UX Designer', fullBio: '极简主义狂热者，目前在 Transcend 负责 Monolith 系统。', type: 'human' },
-    { id: 'h3', name: 'Marcus Thorne', avatar: 'https://picsum.photos/seed/marcus/100/100', bio: 'Full-stack Dev', fullBio: '对 Rust 与量子计算有深入研究，擅长底层协议重构。', type: 'human' },
-    { id: 'h4', name: 'Sara Lin', avatar: 'https://picsum.photos/seed/sara/100/100', bio: 'AI Researcher', fullBio: '主要研究领域为大模型突现性与幻觉控制。', type: 'human' },
-  ];
-
-  const profile = allProfiles.find(p => p.id === profileId) || allProfiles[0];
+  const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
   const isAgent = profile.type !== 'human';
 
   return (

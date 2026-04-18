@@ -27,6 +27,8 @@ import { AgentDetailScreen, CreateAgentScreen } from './components/screens/Agent
 import { EditProfileScreen, MyMomentsScreen, SkillWarehouseScreen, MCPMarketScreen, SettingsScreen } from './components/screens/SettingsScreens';
 import { ChatScreen } from './components/screens/ChatScreen';
 
+import { mockProfiles } from './data/mockProfiles';
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -36,11 +38,12 @@ export default function App() {
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
+  const [allContacts, setAllContacts] = useState(mockProfiles);
 
   const [posts, setPosts] = useState<Post[]>([
-    { id: 'p1', author: { name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200' }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
-    { id: 'p2', author: { name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100' }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
-    { id: 'p3', author: { name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+    { id: 'p1', author: { id: 'usr-Alex', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+    { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
+    { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
   ]);
 
   useEffect(() => {
@@ -115,19 +118,18 @@ export default function App() {
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState({
+    id: 'me',
     nickname: 'Alex Chen',
     avatar: 'https://picsum.photos/seed/profile/200/200',
     gender: '男',
     bio: '数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。',
     phone: '138 8888 0000',
     accountId: 'Transcend#001',
-    region: '上海，静安'
+    region: '上海，静安',
+    isAgent: false
   });
 
-  const [agents, setAgents] = useState<(Agent & { bio: string, linkedHuman?: any })[]>([
-    { id: 'a1', name: 'Nexus AI', bio: 'Transcend 核心逻辑架构，高维执行伙伴。', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active', traits: ['高效', '专业'] },
-    { id: 'a2', name: 'Aura', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。', avatar: 'https://picsum.photos/seed/aura/100/100', syncRate: 99.8, status: 'active', traits: ['温文尔雅'] },
-  ]);
+  const agents = allContacts.filter(c => c.isAgent);
 
   const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
 
@@ -216,7 +218,7 @@ export default function App() {
                 onMenuOpen={() => setIsSidebarOpen(true)}
                 posts={posts}
                 userProfile={userProfile}
-                agents={agents}
+                agents={allContacts}
                 onCreatePost={(post) => setPosts(prev => [post, ...prev])}
                 onUpdatePost={(updatedPost) => setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p))}
                 onDeletePost={(id) => {
@@ -227,13 +229,15 @@ export default function App() {
                 }}
               />
             )}
-            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} allContacts={allContacts} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
+                allContacts={allContacts}
                 onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} 
                 onDetailClick={handleProfileDetail}
                 onAction={showToast}
                 onMenuOpen={() => setIsSidebarOpen(true)}
+                onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
               />
             )}
             {activeTab === 'me' && (
@@ -275,7 +279,7 @@ export default function App() {
             isAgent={true}
             profile={agents.find(a => a.id === editingAgentId) || agents[0]}
             onSave={(data) => {
-              setAgents(prev => prev.map(a => a.id === data.id ? data : a));
+              setAllContacts(prev => prev.map(a => a.id === data.id ? data : a));
             }}
           />
         )}
@@ -314,16 +318,17 @@ export default function App() {
           <ChatScreen 
              onBack={() => setCurrentView('main')} 
              targetId={chatTargetId}
+             agents={allContacts}
+             userProfile={userProfile}
              onProfileClick={handleProfileDetail}
              onAction={showToast}
-             agents={agents}
-             userProfile={userProfile}
           />
         )}
 
         {currentView === 'agent-detail' && (
           <AgentDetailScreen 
             profileId={selectedProfileId} 
+            allContacts={allContacts}
             onBack={() => setCurrentView('main')} 
             onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }}
           />

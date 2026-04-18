@@ -3,31 +3,23 @@ import { Menu, Plus, UserCog, Search, PlusCircle, ChevronRight, Verified, Share,
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton, TiltedCard } from '../Common';
 
-export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen }: { 
+export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen, allContacts, onUpdateContact }: { 
   onChatClick: (id: string) => void,
   onDetailClick: (id: string) => void,
   onAction: (msg: string) => void,
-  onMenuOpen: () => void
+  onMenuOpen: () => void,
+  allContacts: any[],
+  onUpdateContact: (contact: any) => void
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [isSucking, setIsSucking] = useState(false);
   
-  const aiPartners = [
-    { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', status: 'Active', lv: 9, syncRate: 98, type: 'super', bio: 'Transcend 核心逻辑架构，高维执行伙伴。' },
-    { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', status: 'Syncing', lv: 14, syncRate: 99.8, type: 'twin', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。' },
-    { id: 'a3', name: 'Logic Weaver', avatar: 'https://picsum.photos/seed/logic/100/100', status: 'Training', lv: 5, syncRate: 45, type: 'super', bio: '数据处理与并发逻辑优化专家。' },
-  ];
+  const aiPartners = allContacts.filter(c => c.isAgent);
+  const humanContacts = allContacts.filter(c => !c.isAgent);
 
-  const humanContacts = [
-    { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', bio: '数字生命架构师', fullBio: '致力于研究硅基文明与人类情感的边界，Transcend 早期参与者。' },
-    { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', bio: 'UI/UX Designer', fullBio: '极简主义狂热者，目前在 Transcend 负责 Monolith 系统。' },
-    { id: 'h3', name: 'Marcus Thorne', avatar: 'https://picsum.photos/seed/marcus/100/100', bio: 'Full-stack Dev', fullBio: '对 Rust 与量子计算有深入研究，擅长底层协议重构。' },
-    { id: 'h4', name: 'Sara Lin', avatar: 'https://picsum.photos/seed/sara/100/100', bio: 'AI Researcher', fullBio: '主要研究领域为大模型突现性与幻觉控制。' },
-  ];
-
-  const filteredAI = aiPartners.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredHumans = humanContacts.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredAI = aiPartners.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()) && (searchQuery ? true : a.isFriend));
+  const filteredHumans = humanContacts.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase()) && (searchQuery ? true : h.isFriend));
 
   const handleShare = () => {
     setIsSucking(true);
@@ -181,26 +173,41 @@ export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpe
                   "{selectedProfile.fullBio || selectedProfile.bio}"
                 </p>
 
-                <div className="grid grid-cols-2 gap-4 mt-8">
-                  <LaserButton 
-                    onClick={() => {
-                      onChatClick(selectedProfile.id);
-                      setSelectedProfile(null);
-                    }}
-                    className="bg-primary text-on-primary py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-sm"
-                  >
-                    <MessageCircle size={18} /> 发起对话
-                  </LaserButton>
-                  <LaserButton 
-                    onClick={() => {
-                      onDetailClick(selectedProfile.id);
-                      setSelectedProfile(null);
-                    }}
-                    className="bg-surface-container-highest text-on-surface py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 transition-all text-sm"
-                  >
-                    <User size={18} /> 详细信息
-                  </LaserButton>
-                </div>
+                {!selectedProfile.isFriend ? (
+                  <div className="mt-8">
+                     <LaserButton 
+                       onClick={() => {
+                         onUpdateContact({ ...selectedProfile, isFriend: true });
+                         setSelectedProfile({ ...selectedProfile, isFriend: true });
+                         onAction(`已发送以太网心智连接请求给 ${selectedProfile.name}`);
+                       }}
+                       className="bg-primary text-on-primary py-3 w-full rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-sm"
+                     >
+                       <Plus size={18} /> 添加为联络人
+                     </LaserButton>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4 mt-8">
+                    <LaserButton 
+                      onClick={() => {
+                        onChatClick(selectedProfile.id);
+                        setSelectedProfile(null);
+                      }}
+                      className="bg-primary text-on-primary py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-sm"
+                    >
+                      <MessageCircle size={18} /> 发起对话
+                    </LaserButton>
+                    <LaserButton 
+                      onClick={() => {
+                        onDetailClick(selectedProfile.id);
+                        setSelectedProfile(null);
+                      }}
+                      className="bg-surface-container-highest text-on-surface py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 transition-all text-sm"
+                    >
+                      <User size={18} /> 详细信息
+                    </LaserButton>
+                  </div>
+                )}
               </div>
             </TiltedCard>
           </motion.div>

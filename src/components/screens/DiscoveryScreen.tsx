@@ -101,7 +101,7 @@ export const DiscoveryScreen = ({
   const handleCreatePost = async () => {
     if (!newPostContent.trim() && !selectedImage) return;
     const postData = {
-      author_data: { name: userProfile.nickname, avatar: userProfile.avatar, isAgent: false },
+      author_data: { id: userProfile.id || 'me', name: userProfile.nickname, avatar: userProfile.avatar, isAgent: false },
       content: newPostContent, image_url: selectedImage, likes_count: 0, comments_count: 0,
       user_id: isSupabaseConfigured ? (await supabase.auth.getUser()).data.user?.id : 'demo'
     };
@@ -254,7 +254,7 @@ export const DiscoveryScreen = ({
                     >
                       <p className="text-[9px] uppercase text-outline font-bold tracking-widest mb-3">呼唤网络实体</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false, id: 'human-auth-1'}].filter(u => u.name.toLowerCase().includes(mentionQuery)).slice(0, 4).map((u, i) => (
+                        {agents.filter(u => u.name.toLowerCase().includes(mentionQuery)).slice(0, 4).map((u, i) => (
                            <div key={i} onClick={() => handleMentionSelect(u.name)} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 hover:border-primary/40 cursor-pointer transition-all">
                              <img src={u.avatar} className="w-8 h-8 rounded-full object-cover" />
                              <div className="min-w-0">
@@ -321,11 +321,7 @@ export const DiscoveryScreen = ({
                 <div className="space-y-4">
                   <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关用户</h3>
                   <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-                    {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false, id: 'human-h1'},
-                      // Ensure post authors who are human appear with correct mocked IDs
-                      ...Array.from(new Set(posts.filter(p => !p.author.isAgent && p.author.name !== 'Julian Chen' && p.author.name !== userProfile.nickname).map(p => p.author.name)))
-                        .map((name, i) => ({ name, avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`, isAgent: false, id: `human-h${i+2}` }))
-                    ].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
+                    {agents.filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
                       <div key={i} onClick={() => onProfileClick(u.id === 'me' ? 'me' : u.id)} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5 hover:border-primary/40 cursor-pointer transition-colors">
                         <img src={u.avatar} className="w-12 h-12 rounded-full" />
                         <p className="font-bold text-xs truncate max-w-[80px]">{u.name}</p>

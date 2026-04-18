@@ -3,18 +3,43 @@ import { Menu, PlusSquare, Command, Search, Verified } from 'lucide-react';
 import { LaserButton } from '../Common';
 import { Chat } from '../../types';
 
-export const MessagesScreen = ({ onChatClick, onMenuOpen }: { onChatClick: (id: string) => void, onMenuOpen: () => void }) => {
+export const MessagesScreen = ({ onChatClick, onMenuOpen, allContacts }: { onChatClick: (id: string) => void, onMenuOpen: () => void, allContacts: any[] }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
-  const agents: Chat[] = [
+  // Dynamically assemble chat history from allContacts and localStorage
+  const activeChats = React.useMemo(() => {
+    return allContacts.map(contact => {
+      const historyStr = localStorage.getItem(`chat_${contact.id}`);
+      if (historyStr) {
+        try {
+          const msgs = JSON.parse(historyStr);
+          if (msgs && msgs.length > 0) {
+            const lastMsg = msgs[msgs.length - 1];
+            return {
+              id: contact.id,
+              name: contact.name,
+              avatar: contact.avatar,
+              lastMessage: lastMsg.text,
+              time: lastMsg.time,
+              unread: 0,
+              level: contact.lv,
+              isAgent: contact.isAgent
+            } as Chat;
+          }
+        } catch(e) {}
+      }
+      return null;
+    }).filter(Boolean) as Chat[];
+  }, [allContacts]);
+
+  // Fallback mocks if no history
+  const agents: Chat[] = activeChats.filter(c => c.isAgent).length > 0 ? activeChats.filter(c => c.isAgent) : [
     { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', lastMessage: '分析完成。您的转化效率已提升12%。', time: '14:02', unread: 2, level: 9, isAgent: true },
     { id: 'a2', name: 'Logic Weaver', avatar: 'https://picsum.photos/seed/logic/100/100', lastMessage: '我已重构数据集群以优化检索。', time: '昨天', level: 5, isAgent: true },
   ];
 
-  const humans: Chat[] = [
+  const humans: Chat[] = activeChats.filter(c => !c.isAgent).length > 0 ? activeChats.filter(c => !c.isAgent) : [
     { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', lastMessage: '今晚在枢纽中心见吗？', time: '10:45' },
-    { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', lastMessage: '原型已准备就绪，可以进行初步审查。', time: '周三', unread: 5 },
-    { id: 'h3', name: 'Marcus Thorne', avatar: 'https://picsum.photos/seed/marcus/100/100', lastMessage: '向您分享了一个位置。', time: '周一' },
   ];
 
   const filteredAgents = agents.filter(chat => chat.name.toLowerCase().includes(searchQuery.toLowerCase()));
