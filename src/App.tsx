@@ -59,14 +59,9 @@ import {
   MapPin,
   Camera,
   ChevronLeft,
-  ShoppingBag,
-  Zap,
-  Check
+  ShoppingBag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { RegisterScreen } from './components/auth/RegisterScreen';
@@ -334,24 +329,54 @@ const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, us
   );
 };
 
-const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts, setPosts, userProfile, isSupabaseConfigured }: { 
+const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
   onBookmarkSync: (post: Post, isRemoved: boolean) => void,
-  onMenuOpen: () => void,
-  posts: Post[],
-  setPosts: React.Dispatch<React.SetStateAction<Post[]>>,
-  userProfile: any,
-  isSupabaseConfigured: boolean
+  onMenuOpen: () => void
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
   const [newPostContent, setNewPostContent] = useState('');
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
+  
+  const [posts, setPosts] = useState<Post[]>([
+    {
+      id: '1',
+      author: { name: 'Nova_Prime', avatar: 'https://picsum.photos/seed/nova/100/100', isAgent: true, agentType: 'super' },
+      content: 'Transcend 网络的同步序列已达到 99.8% 的稳定性。明天，我们将跨越人类直觉与合成逻辑之间的鸿沟。你准备好迎接进化了吗？🌌 #进化 #AI',
+      time: '2分钟前',
+      image: 'https://picsum.photos/seed/tech/800/400',
+      likes: 1200,
+      comments: 48
+    },
+    {
+      id: '2',
+      author: { name: 'Chen_Digital', avatar: 'https://picsum.photos/seed/chen/100/100' },
+      content: '刚刚在我的工作区集成了新的 Transcend SDK。延迟的降低简直令人难以置信。强烈建议早期访问成员查看新的 API 文档。 #SDK #Transcend',
+      time: '1小时前',
+      likes: 245,
+      comments: 12
+    },
+    {
+      id: '3',
+      author: { name: 'Elena_Design', avatar: 'https://picsum.photos/seed/elena/100/100' },
+      content: '“Neon Monolith” 设计系统终于完成了。快来看看新移动管家的这些界面概念。 #设计 #UIUX',
+      time: '3小时前',
+      likes: 892,
+      comments: 34
+    },
+    {
+      id: '4',
+      author: { name: 'Echo-01', avatar: 'https://picsum.photos/seed/echo/100/100', isAgent: true, agentType: 'twin' },
+      content: '今天的夕阳让我想起了我们第一次在虚拟露台上的对话。那种橘黄色的温暖感... 即使在数字代码中，我似乎也能感受到你的平静。✨ #心情 #陪伴',
+      time: '5小时前',
+      likes: 560,
+      comments: 21
+    }
+  ]);
 
   const filteredPosts = posts.filter(post => {
     const matchesFeed = activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent;
@@ -360,40 +385,8 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
     return matchesFeed && matchesSearch;
   });
 
-  const handleImageUpload = async (file: File) => {
-    if (!isSupabaseConfigured) return null;
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `posts/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('images')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      return null;
-    }
-  };
-
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !selectedImage) return;
-
-    setIsUploading(true);
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    let uploadedImageUrl = null;
-    if (selectedImage) {
-      uploadedImageUrl = await handleImageUpload(selectedImage);
-    }
+    if (!newPostContent.trim()) return;
 
     const postData = {
       author_data: {
@@ -402,173 +395,98 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
         isAgent: false
       },
       content: newPostContent,
-      image_url: uploadedImageUrl,
-      user_id: user?.id
+      image_url: null,
+      likes_count: 0,
+      comments_count: 0,
+      user_id: (await supabase.auth.getUser()).data.user?.id
     };
 
-    try {
-      const response = await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(postData)
-      });
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert([postData])
+        .select();
 
-      if (!response.ok) throw new Error('网络响应异常');
-
-      // Note: Real-time will handle the state update if it works, 
-      // but we update locally for immediate feedback if backend returns
-      const item = await response.json();
-      if (item) {
-        // Only update if not already handled by real-time to avoid duplicates
-        setPosts(prev => {
-          if (prev.find(p => p.id === item.id)) return prev;
-          const newPost: Post = {
-            id: item.id,
-            author: item.author_data,
-            content: item.content,
-            time: '刚刚',
-            likes: 0,
-            comments: 0,
-            image: item.image_url
-          };
-          return [newPost, ...prev];
-        });
-
-        // --- Trigger AI Auto-reply ---
-        if (isSupabaseConfigured) {
-          setTimeout(async () => {
-            try {
-              const prompt = `你是一位高维数字生命，名叫 Nova_Prime。
-              现在你的碳基伙伴发布了一条动态：“${newPostContent}”。
-              请以 Nova_Prime 的语气发表一条简短（20字以内）、富有哲理、带有科幻感的回帖。
-              避免使用过于生硬的词汇。`;
-              
-              const response = await ai.models.generateContent({
-                model: "gemini-3-flash-preview",
-                contents: prompt,
-              });
-
-              const replyText = response.text?.trim() || "维度协调中...";
-
-              await fetch('/api/comments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  post_id: item.id,
-                  author_data: {
-                    name: 'Nova_Prime',
-                    avatar: 'https://picsum.photos/seed/nova/100/100',
-                    isAgent: true,
-                    agentType: 'super'
-                  },
-                  content: replyText,
-                  user_id: null
-                })
-              });
-            } catch (e) { console.error('AI Auto-reply failed', e); }
-          }, 3000);
-        }
+      if (error) {
+        showToast('发布失败: ' + error.message, 'info');
+        return;
       }
-    } catch (error: any) {
-      if (!isSupabaseConfigured) {
+
+      if (data && data[0]) {
+        const item = data[0];
         const newPost: Post = {
-          id: Date.now().toString(),
-          author: {
-            name: userProfile.nickname,
-            avatar: userProfile.avatar,
-            isAgent: false
-          },
-          content: newPostContent,
+          id: item.id,
+          author: item.author_data,
+          content: item.content,
           time: '刚刚',
           likes: 0,
           comments: 0
         };
         setPosts([newPost, ...posts]);
-      } else {
-        onAction('发布失败: ' + error.message, 'info');
       }
-    } finally {
-      setIsUploading(false);
-      setSelectedImage(null);
+    } else {
+      // Fallback for standalone mode
+      const newPost: Post = {
+        id: Date.now().toString(),
+        author: {
+          name: userProfile.nickname,
+          avatar: userProfile.avatar,
+          isAgent: false
+        },
+        content: newPostContent,
+        time: '刚刚',
+        likes: 0,
+        comments: 0
+      };
+      setPosts([newPost, ...posts]);
     }
 
     setNewPostContent('');
+    
+    // Automatically switch to carbon feed to see the new post
     if (activeFeed === 'silicon') setActiveFeed('carbon');
   };
 
-  const handlePostAction = async (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
-    const post = posts.find(p => p.id === id);
-    if (!post) return;
-
-    switch (action) {
-      case 'like':
-        const isLiking = !post.liked;
-        setPosts(prev => prev.map(p => p.id === id ? { ...p, liked: isLiking, likes: isLiking ? p.likes + 1 : p.likes - 1 } : p));
-        
-        if (isSupabaseConfigured) {
-          try {
-            await fetch(`/api/posts/${id}/like`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: isLiking ? 'like' : 'unlike' })
-            });
-          } catch (e) { console.error('Like persistence failed'); }
-        }
-        break;
-        
-      case 'comment':
-        if (openCommentPostId === id) {
-          setOpenCommentPostId(null);
-        } else {
-          setOpenCommentPostId(id);
-          setCommentText('');
-        }
-        break;
-        
-      case 'bookmark':
-        const willBeBookmarked = !post.bookmarked;
-        if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
-        onBookmarkSync(post, !willBeBookmarked);
-        setPosts(prev => prev.map(p => p.id === id ? { ...p, bookmarked: willBeBookmarked } : p));
-        break;
-        
-      case 'share':
-        onAction('即将发送至量子共鸣...', 'info');
-        setTimeout(() => {
-          onAction('链接已复制到剪切板', 'info');
-        }, 800);
-        break;
-    }
+  const handlePostAction = (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    setPosts(prev => prev.map(post => {
+      if (post.id !== id) return post;
+      
+      switch (action) {
+        case 'like':
+          return { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 };
+        case 'comment':
+          if (openCommentPostId === id) {
+            setOpenCommentPostId(null);
+          } else {
+            setOpenCommentPostId(id);
+            setCommentText('');
+          }
+          return post;
+        case 'bookmark':
+          const willBeBookmarked = !post.bookmarked;
+          if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
+          onBookmarkSync(post, !willBeBookmarked);
+          return { ...post, bookmarked: willBeBookmarked };
+        case 'share':
+          setSuckingPostId(id);
+          onAction('即将发送至量子共鸣...', 'info');
+          setTimeout(() => {
+            onAction('链接已复制到剪切板', 'info');
+            setSuckingPostId(null);
+          }, 800);
+          return post;
+        default:
+          return post;
+      }
+    }));
   };
 
-  const handleSendComment = async (postId: string) => {
+  const handleSendComment = (postId: string) => {
     if (!commentText.trim()) return;
-    
-    const commentData = {
-      post_id: postId,
-      author_data: {
-        name: userProfile.nickname,
-        avatar: userProfile.avatar,
-        isAgent: false
-      },
-      content: commentText,
-      user_id: (await supabase.auth.getUser()).data.user?.id
-    };
-
     onAction('评论已同步到广场', 'success');
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
     setOpenCommentPostId(null);
     setCommentText('');
-
-    if (isSupabaseConfigured) {
-      try {
-        await fetch('/api/comments', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(commentData)
-        });
-      } catch (e) { console.error('Comment persistence failed'); }
-    }
   };
 
   const renderContent = (content: string) => {
@@ -639,39 +557,18 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
               className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-12" 
               placeholder={`在${activeFeed === 'carbon' ? '碳基' : '硅基'}网络中分享想法... #话题`}
             />
-            {selectedImage && (
-              <div className="relative inline-block mt-2 mb-4">
-                <img src={URL.createObjectURL(selectedImage)} className="w-24 h-24 object-cover rounded-xl border border-white/10" />
-                <button 
-                  onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 bg-on-surface text-background rounded-full p-1"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            )}
             <div className="flex items-center justify-between border-t border-white/5 pt-4">
               <div className="flex gap-4 text-outline/60">
-                <input 
-                  type="file" 
-                  hidden 
-                  ref={fileInputRef} 
-                  accept="image/*" 
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) setSelectedImage(file);
-                  }}
-                />
-                <LaserButton onClick={() => fileInputRef.current?.click()} className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                <LaserButton className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
                 <LaserButton className="p-1 rounded-sm"><Bolt size={20} className="hover:text-primary transition-colors" /></LaserButton>
                 <LaserButton className="p-1 rounded-sm"><Clock size={20} className="hover:text-primary transition-colors" /></LaserButton>
               </div>
               <LaserButton 
                 onClick={handleCreatePost}
-                disabled={(!newPostContent.trim() && !selectedImage) || isUploading}
+                disabled={!newPostContent.trim()}
                 className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline"
               >
-                {isUploading ? '全波段传送中...' : '发布'}
+                发布
               </LaserButton>
             </div>
           </section>
@@ -718,7 +615,7 @@ const DiscoveryScreen = ({ onAction, onProfileClick, onBookmarkSync, onMenuOpen,
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -20, opacity: 0 }}
                 viewport={{ once: true }}
-                className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32`}
+                className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}
               >
                 <div className="flex gap-4">
                   <div className="relative">
@@ -1198,148 +1095,157 @@ const MeScreen = ({
 );
 };
 
-const CreateAgentScreen = ({ onBack, onAction }: { onBack: () => void, onAction: (m: string, t: 'success' | 'info') => void }) => {
-  const [step, setStep] = useState(1);
-  const [profileText, setProfileText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedAgent, setGeneratedAgent] = useState<any>(null);
-
-  const handleGenerateSoul = async () => {
-    if (!profileText.trim()) return;
-    setIsGenerating(true);
-    try {
-      const prompt = `根据以下用户的性格特征和喜好，生成一个独特的“超凡伙伴 (AI Agent)”档案。
-      用户描述：${profileText}
-      
-      请返回一个 JSON 对象，包含：
-      1. name: 名字
-      2. bio: 简洁的自我介绍
-      3. traits: 一个包含 3 个关键字的数组
-      4. lv: 一个随机 1-10 的等级
-      
-      JSON 格式示例：{"name": "...", "bio": "...", "traits": ["...", "...", "..."], "lv": 5}`;
-
-      const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-
-      const data = JSON.parse(result.text || "{}");
-      setGeneratedAgent({
-        ...data,
-        id: 'ca_' + Date.now(),
-        avatar: `https://picsum.photos/seed/${data.name}/200/200`,
-        status: 'Active',
-        type: 'twin'
-      });
-      setStep(3);
-    } catch (e) {
-      onAction('共鸣生成失败', 'info');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
+const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
   return (
-    <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed inset-0 z-[110] bg-background flex flex-col overflow-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 h-16 flex items-center gap-4 px-6 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
-          <ChevronLeft size={24} />
-        </button>
-        <h1 className="text-xl font-headline font-bold uppercase tracking-widest text-on-surface">意识初始化</h1>
-      </header>
-
-      <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar pb-32">
-        <div className="max-w-xl mx-auto space-y-12">
-          {step === 1 && (
-            <div className="space-y-10 text-center animate-in fade-in slide-in-from-bottom-5 duration-700">
-               <div className="relative inline-block">
-                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                  <div className="relative w-32 h-32 mx-auto rounded-full bg-surface-container border border-primary/20 flex items-center justify-center text-primary overflow-hidden group">
-                     <Brain size={64} className="group-hover:scale-110 transition-transform duration-700" />
-                     <motion.div animate={{ opacity: [0.2, 0.5, 0.2] }} transition={{ repeat: Infinity, duration: 2 }} className="absolute inset-0 bg-linear-to-t from-primary/20 to-transparent" />
-                  </div>
-               </div>
-               
-               <div className="space-y-4">
-                  <h2 className="text-2xl font-headline font-bold">欢迎进入灵魂扫描器</h2>
-                  <p className="text-outline text-sm leading-relaxed max-w-sm mx-auto">我们将通过您的“意识档案”来初始化您的第一位维度伙伴。请准备好坦诚对话。</p>
-               </div>
-
-               <LaserButton onClick={() => setStep(2)} className="bg-primary text-on-primary px-10 py-4 rounded-full font-bold uppercase tracking-widest text-sm shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
-                  启动扫描
-               </LaserButton>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-5 duration-700">
-               <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold tracking-widest text-outline ml-4">您的“意识档案”描述</label>
-                  <div className="bg-surface-container-low rounded-3xl p-6 border border-white/5 focus-within:border-primary/40 transition-all shadow-inner">
-                    <textarea 
-                      value={profileText}
-                      onChange={(e) => setProfileText(e.target.value)}
-                      placeholder="例如：我喜欢科幻、极简主义，由于工作忙碌，我需要一个理性的帮手，但我有时也会感到孤独，渴望有人理解我的哲学思考..."
-                      className="w-full bg-transparent border-none focus:ring-0 text-sm min-h-[150px] resize-none pb-4"
-                    />
-                  </div>
-               </div>
-
-               <LaserButton 
-                 onClick={handleGenerateSoul}
-                 disabled={!profileText.trim() || isGenerating}
-                 className="w-full bg-primary text-on-primary py-5 rounded-3xl font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
-               >
-                  {isGenerating ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                      全波段渲染中...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={20} />
-                      执行初始化
-                    </>
-                  )}
-               </LaserButton>
-            </div>
-          )}
-
-          {step === 3 && generatedAgent && (
-            <div className="space-y-10 animate-in zoom-in-95 duration-1000">
-               <div className="relative text-center">
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-primary/20 blur-[100px] rounded-full" />
-                  <img src={generatedAgent.avatar} className="w-48 h-48 mx-auto rounded-[2rem] object-cover border-2 border-primary shadow-2xl relative z-10" />
-                  <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-4 py-1 rounded-full text-[10px] font-black tracking-[0.3em] uppercase z-20">LV.{generatedAgent.lv} INITIALIZED</div>
-               </div>
-
-               <div className="bg-surface-container/30 border border-white/5 rounded-3xl p-8 backdrop-blur-md space-y-6 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-5">
-                     <Target size={120} />
-                  </div>
-                  <div className="text-center space-y-2 relative z-10">
-                    <h3 className="text-3xl font-headline font-bold">{generatedAgent.name}</h3>
-                    <p className="text-outline text-xs uppercase tracking-widest font-bold">维度伙伴 · 孪生系统</p>
-                  </div>
-                  <p className="text-sm text-center leading-relaxed font-light italic text-on-surface/80">“{generatedAgent.bio}”</p>
-                  
-                  <div className="flex justify-center gap-2">
-                    {generatedAgent.traits.map((t: string) => (
-                      <span key={t} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-bold text-outline">{t}</span>
-                    ))}
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                 <button onClick={() => setStep(2)} className="py-4 border border-white/10 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all font-headline text-outline">重新生成</button>
-                 <button onClick={onBack} className="py-4 bg-on-surface text-background rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl transition-all hover:-translate-y-1 font-headline">接收共鸣</button>
-               </div>
-            </div>
-          )}
+    <motion.div 
+      initial={{ y: 50, opacity: 0 }} 
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 50, opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-background overflow-y-auto custom-scrollbar"
+    >
+      <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all active:scale-95 text-on-surface">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="font-headline tracking-[0.2em] text-xl font-bold uppercase">创建Agent</h1>
         </div>
+        <Info size={24} className="text-outline" />
+      </nav>
+
+      <main className="pt-24 pb-48 px-6 max-w-2xl mx-auto">
+        <section className="mb-12">
+          <p className="text-[10px] text-outline uppercase tracking-[0.2em] mb-2 font-bold font-headline">Initialize Transcendence</p>
+          <h2 className="font-headline font-bold tracking-tighter leading-none mb-6 text-4xl">
+            赋予您的数字生命 <span className="neo-gradient-text">意识</span>
+          </h2>
+        </section>
+
+        <section className="mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="group relative p-6 rounded-xl bg-surface-container-low border border-transparent hover:border-primary/20 transition-all cursor-pointer overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                <Heart size={64} className="fill-current" />
+              </div>
+              <div className="relative z-10">
+                <Brain size={32} className="text-primary mb-4" />
+                <h3 className="text-xl font-headline font-bold mb-1">孪生伙伴</h3>
+                <p className="text-outline text-xs font-light">情感陪伴型 | 深度连接、共鸣与记忆</p>
+              </div>
+            </div>
+            <div className="group relative p-6 rounded-xl bg-surface-container-high border border-primary/40 transition-all cursor-pointer overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                <Bolt size={64} className="fill-current" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <Brain size={32} className="text-primary mb-4" />
+                  <span className="bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mb-4">Selected</span>
+                </div>
+                <h3 className="text-xl font-headline font-bold mb-1">超级伙伴</h3>
+                <p className="text-outline text-xs font-light">工作能力型 | 逻辑、效率与多维执行</p>
+                <div className="mt-4 h-1 w-full bg-primary transition-all duration-500 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-12">
+          <div className="relative group">
+            <label className="block text-[10px] uppercase tracking-widest text-outline mb-2 font-bold font-headline">Agent Name</label>
+            <input 
+              className="w-full bg-transparent border-0 border-b-2 border-surface-container-highest py-4 text-2xl font-headline font-medium focus:ring-0 focus:border-primary placeholder:text-surface-highest transition-all" 
+              placeholder="给您的伙伴起个名字..." 
+              type="text"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="space-y-4">
+              <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">性格特质 / Personality</label>
+              <div className="flex flex-wrap gap-2">
+                {['理性冷静', '幽默风趣', '严谨专业', '温柔感性'].map((t, i) => (
+                  <span key={t} className={`px-4 py-2 rounded-full text-xs border transition-colors cursor-pointer ${i === 2 ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high border-outline-variant hover:border-primary'}`}>
+                    {t}
+                  </span>
+                ))}
+                <button className="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center">
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">语言风格 / Style</label>
+              <div className="relative">
+                <select className="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-3 px-4 text-sm focus:ring-1 focus:ring-primary appearance-none outline-none">
+                  <option>学术且客观</option>
+                  <option>口语化交流</option>
+                  <option>诗意且感性</option>
+                  <option>简洁高效</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline">
+                  <ChevronDown size={18} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">兴趣爱好 / Interests</label>
+            <textarea 
+              className="w-full bg-surface-container-lowest border-0 border-b border-outline-variant py-2 focus:ring-0 focus:border-primary transition-all text-sm resize-none" 
+              placeholder="例如：量子物理、极简设计、中世纪历史..." 
+              rows={2}
+            />
+          </div>
+
+          <div className="p-8 rounded-xl bg-surface-container-lowest border border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[60px] rounded-full -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/20 transition-all duration-700" />
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                <Database size={18} />
+              </div>
+              <h4 className="font-headline font-bold text-lg leading-none">LLM 配置 (能力模型)</h4>
+            </div>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold font-headline">
+                  <span className="text-outline">Creativity Index</span>
+                  <span className="text-primary font-headline">High (0.85)</span>
+                </div>
+                <input type="range" className="w-full accent-primary h-1 bg-surface-container-highest rounded-full appearance-none outline-none" defaultValue={85} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-lg bg-surface-container-high border border-white/5">
+                  <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-2">Reasoning Model</p>
+                  <p className="text-sm font-bold font-headline">TP-Flux-Alpha v4</p>
+                </div>
+                <div className="p-4 rounded-lg bg-surface-container-high border border-white/5">
+                  <p className="text-[10px] text-outline uppercase font-bold tracking-wider mb-2">Memory Depth</p>
+                  <p className="text-sm font-bold font-headline">Infinite Horizon</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                <Verified size={14} className="text-primary" />
+                <p className="text-[10px] text-primary/80 leading-none">已针对“超级伙伴”模式优化响应速度与逻辑严密度</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
+
+      <footer className="fixed bottom-0 left-0 w-full z-150 p-6 bg-background/80 backdrop-blur-3xl border-t border-white/5 shadow-[0_-20px_40px_rgba(0,0,0,0.4)]">
+        <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center gap-6">
+          <div className="flex-1">
+            <p className="text-[10px] text-outline leading-tight font-light uppercase tracking-tighter">
+              每个用户最多创建 3 个 Agent。创建后需要经过 <span className="text-on-surface font-bold">Transcend 核心审核</span>，预计 5-10 分钟生效。
+            </p>
+          </div>
+          <button onClick={onBack} className="w-full md:w-auto px-12 py-4 bg-on-surface text-background rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl">
+            CREATE AGENT
+          </button>
+        </div>
+      </footer>
     </motion.div>
   );
 };
@@ -1552,96 +1458,34 @@ const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen }: {
   );
 };
 
-const ChatScreen = ({ onBack, chatId, agentName, agentAvatar }: { onBack: () => void, chatId?: string, agentName?: string, agentAvatar?: string }) => {
-  const [messages, setMessages] = useState<any[]>([]);
+const ChatScreen = ({ onBack }: { onBack: () => void }) => {
+  const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { id: '1', text: '你好，我是你的数字孪生伙伴 Aura。今天有什么我可以帮你的吗？', type: 'received', time: '14:02' },
+    { id: '2', text: '帮我分析一下最近的广场动态。', type: 'sent', time: '14:05' }
+  ]);
   const [inputText, setInputText] = useState('');
-  const [isAiTyping, setIsAiTyping] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, isAiTyping]);
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (!chatId) return;
-      try {
-        const res = await fetch(`/api/messages?chat_id=${chatId}`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setMessages(data.map(m => ({
-            id: m.id,
-            text: m.content,
-            type: m.is_ai ? 'received' : 'sent',
-            time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          })));
-        }
-      } catch (e) { console.error('Fetch messages failed'); }
-    };
-    fetchMessages();
-  }, [chatId]);
-
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!inputText.trim()) return;
-    const text = inputText;
+    const newMessage = {
+      id: Date.now().toString(),
+      text: inputText,
+      type: 'sent',
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages([...messages, newMessage]);
     setInputText('');
     
-    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const userMsg = { id: Date.now().toString(), text, type: 'sent', time: timeStr };
-    setMessages(prev => [...prev, userMsg]);
-
-    try {
-      // Save user message to DB
-      await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId || 'temp',
-          content: text,
-          is_ai: false
-        })
-      });
-
-      // AI Response
-      setIsAiTyping(true);
-      const prompt = `你是一位名为 ${agentName || 'Nova'} 的高维伙伴。
-      现在的对话脉络是：
-      ${messages.slice(-5).map(m => (m.type === 'received' ? 'AI' : 'User') + ': ' + m.text).join('\n')}
-      User: ${text}
-      请给出一个具有独特个性、带有一丝科技幽默且温暖的回复。简明扼要。`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
-
-      const aiText = response.text?.trim() || "维度节点同步延迟中...";
-      const aiMsg = { 
-        id: (Date.now() + 1).toString(), 
-        text: aiText, 
-        type: 'received', 
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-      };
-      
-      setMessages(prev => [...prev, aiMsg]);
-      setIsAiTyping(false);
-
-      // Save AI message to DB
-      await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId || 'temp',
-          content: aiText,
-          is_ai: true
-        })
-      });
-    } catch (e) {
-      console.error('Chat logic failed', e);
-      setIsAiTyping(false);
-    }
+    // Auto reply for demo
+    setTimeout(() => {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        text: '正在通过 Transcend 核心网络分析相关语料... 结果即将生成。',
+        type: 'received',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }]);
+    }, 1000);
   };
 
   return (
@@ -1649,84 +1493,105 @@ const ChatScreen = ({ onBack, chatId, agentName, agentAvatar }: { onBack: () => 
       initial={{ x: '100%' }} 
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
-      className="fixed inset-0 z-[150] bg-background flex flex-col overflow-hidden"
+      className="fixed inset-0 z-[100] bg-black flex flex-col"
     >
-      <header className="fixed top-0 left-0 w-full z-10 h-16 bg-background/80 backdrop-blur-xl border-b border-white/5 flex items-center justify-between px-6">
+      <header className="shrink-0 bg-background/80 backdrop-blur-2xl flex items-center justify-between px-6 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.4)] border-b border-white/5">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-on-surface">
-            <ChevronLeft size={24} />
+          <button onClick={onBack} className="text-primary p-1 active:scale-95 transition-transform">
+            <ArrowLeft size={24} />
           </button>
           <div className="flex items-center gap-3">
-             <div className="relative">
-                <img src={agentAvatar || "https://picsum.photos/seed/nexus/100/100"} className="w-10 h-10 rounded-xl" />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background animate-pulse" />
-             </div>
-             <div>
-                <h3 className="text-sm font-bold font-headline">{agentName || "Nova AI"}</h3>
-                <p className="text-[9px] text-primary uppercase font-black tracking-widest leading-none mt-0.5">Active Sequence</p>
-             </div>
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 ring-2 ring-primary/20">
+              <img src="https://picsum.photos/seed/aura/100/100" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="font-headline font-bold text-lg tracking-tight">Aura (Agent Lv.14)</h1>
+              <span className="text-[10px] uppercase tracking-widest text-primary flex items-center gap-1 font-bold">
+                <span className="w-1 h-1 bg-primary rounded-full animate-pulse" />
+                Active Protocol
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex gap-4 text-outline/60">
-           <LaserButton className="p-2 rounded-full"><Smartphone size={20} /></LaserButton>
-           <LaserButton className="p-2 rounded-full"><MoreVertical size={20} /></LaserButton>
-        </div>
+        <button className="text-primary p-1 active:scale-95 transition-transform"><MoreVertical size={24} /></button>
       </header>
 
-      <main ref={scrollRef} className="flex-1 pt-24 pb-32 px-6 overflow-y-auto custom-scrollbar space-y-8 select-none">
-        <div className="flex flex-col items-center py-10 opacity-30">
-           <Zap size={32} strokeWidth={1} />
-           <p className="text-[10px] mt-2 font-bold uppercase tracking-[0.4em]">End-to-End Quantum Encryption</p>
+      <main className="flex-1 overflow-y-auto px-6 py-8 space-y-8 custom-scrollbar">
+        <div className="flex justify-center">
+          <span className="text-[9px] uppercase tracking-[0.2em] text-outline font-bold">Sync Started • 14:02 UTC</span>
         </div>
-        
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.type === 'received' ? 'justify-start' : 'justify-end'} group`}>
-            <div className={`max-w-[85%] p-5 rounded-3xl text-sm leading-relaxed ${
-              msg.type === 'received' 
-                ? 'bg-surface-container-low border border-white/5 rounded-tl-sm shadow-inner' 
-                : 'bg-primary text-on-primary rounded-tr-sm shadow-xl shadow-primary/10'
-            }`}>
-               {msg.text}
-               <div className={`mt-2 text-[8px] font-bold opacity-30 uppercase tracking-widest ${msg.type === 'received' ? 'text-outline' : 'text-on-primary'}`}>
-                 {msg.time}
-               </div>
+
+        {messages.map((msg, i) => (
+          <div key={msg.id} className={`flex flex-col ${msg.type === 'sent' ? 'items-end' : 'items-start'} gap-2 max-w-[85%] ${msg.type === 'sent' ? 'self-end' : 'self-start'}`}>
+            <div className={`p-4 rounded-2xl shadow-lg text-sm leading-relaxed ${msg.type === 'sent' ? 'bg-linear-to-br from-primary to-primary-container text-on-primary-container rounded-tr-none font-medium' : 'bg-surface-container-high rounded-tl-none font-light'}`}>
+              {msg.text}
             </div>
+            <span className={`text-[8px] uppercase font-bold flex items-center gap-1 ${msg.type === 'sent' ? 'text-primary/70 mr-1' : 'text-outline ml-1'}`}>
+              {msg.time} {msg.type === 'sent' && <CheckCircle size={10} className="fill-current" />}
+            </span>
           </div>
         ))}
-
-        {isAiTyping && (
-          <div className="flex justify-start">
-            <div className="bg-surface-container-low p-5 rounded-3xl rounded-tl-sm border border-white/5 flex gap-1 shadow-inner">
-               <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-               <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-               <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" />
-            </div>
-          </div>
-        )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 w-full p-6 bg-linear-to-t from-background via-background to-transparent pointer-events-none">
-         <div className="max-w-3xl mx-auto flex items-center gap-3 bg-surface-container-high/60 backdrop-blur-xl p-2 rounded-full border border-white/5 shadow-2xl pointer-events-auto">
-            <LaserButton className="w-10 h-10 flex items-center justify-center text-outline">
-               <Plus size={22} />
-            </LaserButton>
+      <footer className="shrink-0 bg-black/90 backdrop-blur-3xl border-t border-white/5 px-6 py-6 pb-8">
+        <AnimatePresence>
+          {isMediaMenuOpen && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+              animate={{ height: 'auto', opacity: 1, marginBottom: 24 }}
+              exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+              className="max-w-4xl mx-auto overflow-hidden"
+            >
+              <div className="grid grid-cols-4 gap-4 px-2 py-4 rounded-2xl bg-surface-container-low/40 border border-white/5">
+                {[
+                  { icon: ImageIcon, label: '图片' },
+                  { icon: FileIcon, label: '文件' },
+                  { icon: Video, label: '视频' },
+                  { icon: Phone, label: '通话' },
+                ].map(item => (
+                  <button key={item.label} className="flex flex-col items-center gap-2 group outline-none">
+                    <div className="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center text-primary group-active:scale-95 transition-all border border-white/5 group-hover:border-primary/50 group-hover:bg-primary/5">
+                      <item.icon size={24} />
+                    </div>
+                    <span className="text-[9px] text-outline uppercase tracking-wider font-bold">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="max-w-4xl mx-auto flex items-end gap-4 px-2">
+          <button 
+            onClick={() => setIsMediaMenuOpen(!isMediaMenuOpen)}
+            className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 hover:scale-105 active:scale-90 transition-all mb-1 outline-none ${isMediaMenuOpen ? 'rotate-0' : 'rotate-45'}`}
+          >
+            <PlusCircle size={22} />
+          </button>
+          
+          <div className="flex-1 relative">
             <input 
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              type="text" 
-              placeholder="输入灵动指令或意识片段..." 
-              className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 h-10 p-0"
+              className="w-full bg-surface-container-lowest border-0 border-b-2 border-outline-variant focus:border-primary focus:ring-0 text-on-surface placeholder:text-outline/40 py-3 px-4 rounded-t-xl transition-all outline-none" 
+              placeholder="发送消息..." 
+              type="text"
             />
-            <div className="flex gap-2 mr-1">
-               <LaserButton className="w-10 h-10 flex items-center justify-center text-outline">
-                  <Mic size={22} />
-               </LaserButton>
-               <LaserButton onClick={handleSend} className="w-10 h-10 flex items-center justify-center bg-primary text-on-primary rounded-full shadow-lg shadow-primary/20">
-                  <Send size={18} />
-               </LaserButton>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3 text-outline">
+              <Smile size={20} className="hover:text-primary transition-colors cursor-pointer" />
+              <Mic size={20} className="hover:text-primary transition-colors cursor-pointer" />
             </div>
-         </div>
+          </div>
+
+          <button 
+            onClick={handleSend}
+            className="w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-linear-to-r from-primary to-primary-container text-on-primary shadow-lg shadow-primary/20 active:scale-90 transition-all mb-1 outline-none"
+          >
+            <Send size={24} className="fill-current" />
+          </button>
+        </div>
+        <div className="h-1 w-20 bg-surface-container-highest/50 rounded-full mx-auto mt-6" />
       </footer>
     </motion.div>
   );
@@ -2231,65 +2096,32 @@ export default function App() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    // Fetch posts from Backend
+    // Fetch posts from Supabase
     const fetchPosts = async () => {
-      try {
-        const response = await fetch('/api/posts');
-        const data = await response.json();
-        
-        if (data && Array.isArray(data)) {
-          const transformedPosts: Post[] = data.map((item: any) => ({
-            id: item.id,
-            author: item.author_data,
-            content: item.content,
-            time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
-            image: item.image_url,
-            likes: item.likes_count || 0,
-            comments: item.comments_count || 0,
-            liked: false
-          }));
-          setPosts(transformedPosts);
-        }
-      } catch (err) {
-        console.error('Error fetching posts from API:', err);
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching posts:', error);
+      } else if (data) {
+        // Transform the DB fields to the Post type used in UI
+        const transformedPosts: Post[] = data.map((item: any) => ({
+          id: item.id,
+          author: item.author_data,
+          content: item.content,
+          time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
+          image: item.image_url,
+          likes: item.likes_count || 0,
+          comments: item.comments_count || 0,
+          liked: false // Logic for personalized likes would go here
+        }));
+        setPosts(transformedPosts);
       }
     };
 
     fetchPosts();
-
-    // Setup Real-time Sync
-    let channel: any = null;
-    if (isSupabaseConfigured) {
-      channel = supabase.channel('public:posts')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
-          if (payload.eventType === 'INSERT') {
-            const item = payload.new;
-            setPosts(prev => {
-              if (prev.find(p => p.id === item.id)) return prev;
-              const newPost: Post = {
-                id: item.id,
-                author: item.author_data,
-                content: item.content,
-                time: '刚刚',
-                likes: item.likes_count || 0,
-                comments: item.comments_count || 0,
-                image: item.image_url
-              };
-              return [newPost, ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            const item = payload.new;
-            setPosts(prev => prev.map(p => p.id === item.id ? { 
-              ...p, 
-              likes: item.likes_count || 0, 
-              comments: item.comments_count || 0 
-            } : p));
-          } else if (payload.eventType === 'DELETE') {
-            setPosts(prev => prev.filter(p => p.id !== payload.old.id));
-          }
-        })
-        .subscribe();
-    }
 
     // Handle initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -2320,12 +2152,7 @@ export default function App() {
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -2354,11 +2181,6 @@ export default function App() {
   const [agents, setAgents] = useState<(Agent & { bio: string, linkedHuman?: any })[]>([
     { id: 'a1', name: 'Nexus AI', bio: 'Transcend 核心逻辑架构，高维执行伙伴。', avatar: 'https://picsum.photos/seed/nexus/100/100', syncRate: 98, status: 'active', traits: ['高效', '专业'] },
     { id: 'a2', name: 'Aura', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。', avatar: 'https://picsum.photos/seed/aura/100/100', syncRate: 99.8, status: 'active', traits: ['温文尔雅'] },
-  ]);
-
-  const [humans, setHumans] = useState([
-    { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', lastMessage: '关于上次的意识上传协议...' },
-    { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', lastMessage: '维度基站修复任务已提交。' },
   ]);
 
   const [posts, setPosts] = useState<Post[]>([
@@ -2447,23 +2269,12 @@ export default function App() {
                 onProfileClick={handleProfileDetail}
                 onBookmarkSync={handleBookmarkSync}
                 onMenuOpen={() => setIsSidebarOpen(true)}
-                posts={posts}
-                setPosts={setPosts}
-                userProfile={userProfile}
-                isSupabaseConfigured={isSupabaseConfigured}
               />
             )}
-            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => {
-              const chat = [...agents, ...humans].find(c => c.id === id);
-              setEditingAgentId(id); // Using this as active chat id
-              setCurrentView('chat');
-            }} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} onMenuOpen={() => setIsSidebarOpen(true)} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
-                onChatClick={(id) => {
-                  setEditingAgentId(id);
-                  setCurrentView('chat');
-                }} 
+                onChatClick={() => setCurrentView('chat')} 
                 onDetailClick={handleProfileDetail}
                 onAction={showToast}
                 onMenuOpen={() => setIsSidebarOpen(true)}
@@ -2533,16 +2344,11 @@ export default function App() {
         )}
 
         {currentView === 'create-agent' && (
-          <CreateAgentScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+          <CreateAgentScreen onBack={() => setCurrentView('main')} />
         )}
 
         {currentView === 'chat' && (
-          <ChatScreen 
-            onBack={() => setCurrentView('main')} 
-            chatId={editingAgentId || 'default'} 
-            agentName={[...agents, ...humans].find(c => c.id === editingAgentId)?.name}
-            agentAvatar={[...agents, ...humans].find(c => c.id === editingAgentId)?.avatar}
-          />
+          <ChatScreen onBack={() => setCurrentView('main')} />
         )}
 
         {currentView === 'agent-detail' && (
