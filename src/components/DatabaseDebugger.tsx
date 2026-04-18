@@ -112,9 +112,10 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
         const testData = {
           nickname: '测试用户_' + Date.now(),
           bio: '这是一条测试数据',
-          full_bio: '完整的测试个人简介',
+          fullBio: '完整的测试个人简介',
         };
         
+        addLog(`📝 正在保存测试数据: ${JSON.stringify(testData)}`);
         const success = await UserService.updateUserProfile(currentUserId, testData);
         
         if (success) {
@@ -127,12 +128,14 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
           if (verifyProfile && verifyProfile.nickname === testData.nickname) {
             updateStep('update-test', 'success', '✅ 数据读取验证通过！');
             addLog('✅ 数据读取验证通过！');
+            addLog(`👤 读取到用户: ${verifyProfile.nickname}`);
           } else {
             updateStep('update-test', 'error', '❌ 数据验证失败');
             addLog('❌ 数据验证失败');
+            addLog(`📊 verifyProfile: ${JSON.stringify(verifyProfile)}`);
           }
         } else {
-          updateStep('insert-test', 'error', '❌ 数据保存失败');
+          updateStep('insert-test', 'error', '❌ 数据保存失败 - 请检查浏览器控制台的详细错误');
           updateStep('update-test', 'error', '跳过');
           addLog('❌ 数据库写入失败');
         }
@@ -140,6 +143,7 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
         updateStep('insert-test', 'error', `❌ ${error.message}`, error);
         updateStep('update-test', 'error', '跳过');
         addLog(`❌ 测试失败: ${error.message}`);
+        console.error('❌ 完整错误:', error);
       }
     }
 
