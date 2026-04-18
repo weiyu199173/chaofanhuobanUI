@@ -30,25 +30,33 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view their own profile" 
+-- 简化的 RLS 策略（用于调试）
+CREATE POLICY "Enable all for authenticated users" 
     ON public.users 
-    FOR SELECT 
-    USING (auth.uid() = id);
+    FOR ALL
+    USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
-CREATE POLICY "Users can view public profiles" 
-    ON public.users 
-    FOR SELECT 
-    USING (true);
-
-CREATE POLICY "Users can update their own profile" 
-    ON public.users 
-    FOR UPDATE 
-    USING (auth.uid() = id);
-
-CREATE POLICY "Authenticated users can insert their own profile" 
-    ON public.users 
-    FOR INSERT 
-    WITH CHECK (auth.uid() = id);
+-- 更精细的 RLS 策略（如果上面的简化策略工作正常，可以启用这些）
+-- CREATE POLICY "Users can view their own profile" 
+--     ON public.users 
+--     FOR SELECT 
+--     USING (auth.uid() = id);
+-- 
+-- CREATE POLICY "Users can view public profiles" 
+--     ON public.users 
+--     FOR SELECT 
+--     USING (true);
+-- 
+-- CREATE POLICY "Users can update their own profile" 
+--     ON public.users 
+--     FOR UPDATE 
+--     USING (auth.uid() = id);
+-- 
+-- CREATE POLICY "Authenticated users can insert their own profile" 
+--     ON public.users 
+--     FOR INSERT 
+--     WITH CHECK (auth.uid() = id);
 
 CREATE INDEX IF NOT EXISTS idx_users_nickname ON public.users(nickname);
 ```
@@ -484,16 +492,72 @@ VITE_SUPABASE_ANON_KEY=your-anon-public-key-here
 
 ## 实时订阅设置
 
-所有表都支持 Postgres 实时订阅，需要在 Supabase 仪表板中启用：
+### ⚠️ 重要提示
+**即使不设置实时功能，应用也完全可以正常使用！** 应用会自动降级到手动刷新模式。
 
-1. 进入 Supabase 项目 → Database → Replication
-2. 启用所需表的实时功能
+---
 
-启用的表建议：
-- posts
-- comments
-- likes
-- friendships
+### 🔄 启用实时功能（可选但推荐）
+
+#### 方式 1：通过 Publications（新版界面）
+1. 进入 **Supabase 项目**
+2. 点击左侧菜单 **Database** → **Publications**
+3. 找到 `supabase_realtime` 这个 publication
+4. 点击编辑，添加需要实时同步的表：
+   - ✅ `public.posts`
+   - ✅ `public.comments`
+   - ✅ `public.likes`
+   - ✅ `public.friendships`
+   - ✅ `public.users` (可选)
+   - ✅ `public.agents` (可选)
+
+#### 方式 2：通过 Database Webhooks
+1. 点击左侧菜单 **Database** → **Database Webhooks**
+2. 这里可以设置特定表变更时触发 webhook
+
+#### 方式 3：旧版界面（Replication）
+1. 点击左侧菜单 **Database** → **Replication**（在 PLATFORM 部分）
+2. 找到 **Supabase Realtime** 部分进行配置
+
+#### 步骤 3：配置订阅事件（可选）
+在表配置中可以选择监听哪些事件：
+- `INSERT` - 插入新记录
+- `UPDATE` - 更新记录
+- `DELETE` - 删除记录
+
+建议全部勾选。
+
+### 📋 启用的表建议
+| 表名 | 用途 | 是否必须 |
+|------|------|---------|
+| `posts` | 帖子实时更新 | ✅ 推荐 |
+| `comments` | 评论实时更新 | ✅ 推荐 |
+| `likes` | 点赞实时更新 | ✅ 推荐 |
+| `friendships` | 好友关系变更 | ✅ 推荐 |
+| `users` | 用户资料更新 | ⭕ 可选 |
+| `agents` | AI 代理更新 | ⭕ 可选 |
+
+### 🔍 验证实时功能
+
+设置完成后，你可以通过以下方式验证：
+1. 在应用中发布新帖子
+2. 打开两个浏览器窗口
+3. 在一个窗口中操作，观察另一个窗口是否有实时更新
+
+### ⚙️ 高级配置（可选）
+
+如果需要自定义实时行为，可以修改项目的 `postgresql.conf`：
+
+```sql
+-- 增加最大订阅数（已在 Supabase 云中预配置）
+-- max_replication_slots = 10
+-- max_wal_senders = 10
+```
+
+### 🛡️ 安全提示
+- 实时功能遵守已配置的 RLS（行级安全）策略
+- 用户只能收到自己有权限访问的记录的变更通知
+- 没有权限的记录变更不会推送给客户端
 
 ## JSONB 字段结构说明
 

@@ -299,16 +299,30 @@ export class PostService {
   static subscribeToPosts(callback: (posts: Post[]) => void) {
     if (!isSupabaseConfigured) return () => {};
 
-    const subscription = supabase
-      .channel('public:posts')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, async () => {
-        const posts = await this.getAllPosts();
-        callback(posts);
-      })
-      .subscribe();
+    let channel: any = null;
+    
+    try {
+      channel = supabase
+        .channel('public:posts')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, async () => {
+          const posts = await this.getAllPosts();
+          callback(posts);
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ 实时订阅已连接');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.log('ℹ️ 实时订阅不可用（可能未在 Supabase 开启）');
+          }
+        });
+    } catch (error) {
+      console.log('ℹ️ 实时功能未启用，应用将正常使用轮询方式');
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (channel) {
+        channel.unsubscribe();
+      }
     };
   }
 }

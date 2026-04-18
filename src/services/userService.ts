@@ -48,15 +48,23 @@ export class UserService {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
 
       if (error) {
         console.error('获取用户资料失败:', error);
         return null;
       }
 
-      return data as UserProfile;
+      if (data && data.length > 0) {
+        // 确保字段兼容
+        const profile: UserProfile = {
+          ...data[0],
+          fullBio: data[0].full_bio || data[0].fullBio,
+        };
+        return profile;
+      }
+
+      return null;
     } catch (error) {
       console.error('获取用户资料出错:', error);
       return null;
@@ -68,26 +76,88 @@ export class UserService {
    */
   static async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<boolean> {
     if (!isSupabaseConfigured) {
+      console.log('⚠️ Supabase 未配置，跳过服务器保存');
+      return false;
+    }
+
+    if (!userId) {
+      console.error('❌ 没有用户ID，无法保存');
       return false;
     }
 
     try {
-      const { error } = await supabase
+      // 转换字段名：fullBio -> full_bio
+      const dbData: any = { ...profileData };
+      if (dbData.fullBio !== undefined) {
+        dbData.full_bio = dbData.fullBio;
+        delete dbData.fullBio;
+      }
+      // 删除不应更新的字段
+      delete dbData.uid;
+      delete dbData.isAgent;
+      delete dbData.type;
+      delete dbData.id;
+      
+      dbData.updated_at = new Date().toISOString();
+
+      console.log('🔄 正在更新用户资料...');
+      console.log('   用户ID:', userId);
+      console.log('   数据:', dbData);
+
+      // 先检查记录是否存在
+      const { data: existingRecords, error: checkError } = await supabase
         .from('users')
-        .update({
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
+        .select('id')
         .eq('id', userId);
 
-      if (error) {
-        console.error('更新用户资料失败:', error);
+      if (checkError) {
+        console.error('❌ 检查用户记录失败:', checkError);
+      }
+      
+      const existingRecord = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
+
+      let resultError = null;
+      
+      if (existingRecord) {
+        console.log('📝 记录存在，执行更新...');
+        const { error } = await supabase
+          .from('users')
+          .update(dbData)
+          .eq('id', userId);
+        resultError = error;
+      } else {
+        console.log('🆕 记录不存在，创建新记录...');
+        const insertData = {
+          id: userId,
+          nickname: dbData.nickname || '用户',
+          avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+          bio: dbData.bio || '',
+          full_bio: dbData.full_bio || '',
+          gender: dbData.gender || '',
+          phone: dbData.phone || '',
+          accountId: dbData.accountId || '',
+          region: dbData.region || '',
+        };
+        console.log('插入数据:', insertData);
+        
+        const { error } = await supabase
+          .from('users')
+          .insert(insertData);
+        resultError = error;
+      }
+
+      if (resultError) {
+        console.error('❌ 数据库操作失败:', resultError);
+        console.error('   错误代码:', resultError.code);
+        console.error('   错误信息:', resultError.message);
+        console.error('   详细:', resultError);
         return false;
       }
 
+      console.log('✅ 用户资料保存成功！');
       return true;
     } catch (error) {
-      console.error('更新用户资料出错:', error);
+      console.error('💥 更新用户资料异常:', error);
       return false;
     }
   }

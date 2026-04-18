@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, Info } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import './lib/supabase-test';
 
 import { AppTab, AppView, Post, UserProfile as UserProfileType, ContactProfile } from './types';
 import { BottomNavBar, SideNavigation } from './components/layout/Navigation';
@@ -21,6 +22,7 @@ import { UserService } from './services/userService';
 import { FriendService } from './services/friendService';
 import { PostService } from './services/postService';
 import { ContactService } from './services/contactService';
+import { DatabaseDebugger } from './components/DatabaseDebugger';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -31,6 +33,7 @@ export default function App() {
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDebugger, setShowDebugger] = useState(false);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [allContacts, setAllContacts] = useState<ContactProfile[]>(mockProfiles);
@@ -67,29 +70,43 @@ export default function App() {
 
     try {
       setLoading(true);
+      console.log('🔄 正在加载初始数据...');
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
+        console.log('👤 当前用户:', user.id);
         
-        const userProfileData = await UserService.getUserProfile(user.id);
-        if (userProfileData) {
-          setUserProfile({
-            id: userProfileData.id,
-            uid: user.id,
-            nickname: userProfileData.nickname,
-            avatar: userProfileData.avatar,
-            gender: userProfileData.gender || '男',
-            bio: userProfileData.bio,
-            phone: userProfileData.phone || '',
-            accountId: userProfileData.accountId || `Transcend#${user.id.substring(0, 8)}`,
-            region: userProfileData.region || '',
-            isAgent: false,
-            type: 'human',
-            full_bio: userProfileData.full_bio,
-            fullBio: userProfileData.full_bio || userProfileData.fullBio
-          });
+        let userProfileData = await UserService.getUserProfile(user.id);
+        
+        // 如果数据库中没有资料，从 auth metadata 或使用默认值
+        if (!userProfileData) {
+          console.log('📝 用户记录不存在，使用默认值');
+          const userMetadata = user.user_metadata || {};
+          userProfileData = {
+            id: user.id,
+            nickname: userMetadata.nickname || '用户',
+            avatar: userMetadata.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.id}`,
+            bio: userMetadata.bio || '',
+          };
         }
+
+        setUserProfile({
+          id: userProfileData.id,
+          uid: user.id,
+          nickname: userProfileData.nickname,
+          avatar: userProfileData.avatar,
+          gender: userProfileData.gender || '男',
+          bio: userProfileData.bio,
+          phone: userProfileData.phone || '',
+          accountId: userProfileData.accountId || `Transcend#${user.id.substring(0, 8)}`,
+          region: userProfileData.region || '',
+          isAgent: false,
+          type: 'human',
+          full_bio: userProfileData.full_bio,
+          fullBio: userProfileData.full_bio || userProfileData.fullBio
+        });
+        console.log('✅ 用户资料已加载:', userProfileData);
       }
 
       const loadedPosts = await PostService.getAllPosts();
@@ -374,13 +391,14 @@ export default function App() {
             )}
             <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
             <SideNavigation 
-              isOpen={isSidebarOpen} 
-              onClose={() => setIsSidebarOpen(false)} 
-              onLogout={handleLogout} 
-              onNavigate={(view) => setCurrentView(view)}
-              onTabChange={setActiveTab}
-              userProfile={userProfile} 
-            />
+            isOpen={isSidebarOpen} 
+            onClose={() => setIsSidebarOpen(false)} 
+            onLogout={handleLogout} 
+            onNavigate={(view) => setCurrentView(view)}
+            onTabChange={setActiveTab}
+            userProfile={userProfile}
+            onOpenDebugger={() => setShowDebugger(true)}
+          />
           </motion.div>
         )}
 
@@ -389,16 +407,24 @@ export default function App() {
             onBack={() => setCurrentView('main')}
             profile={userProfile}
             onSave={async (data) => {
+              // 先尝试保存到数据库
+              let saveSuccess = false;
+              
+              if (isSupabaseConfigured && currentUserId) {
+                saveSuccess = await UserService.updateUserProfile(currentUserId, data);
+              }
+              
+              // 无论如何都更新本地状态
               setUserProfile(data);
               setAllContacts(prev => prev.map(c => 
                 c.id === data.id ? { ...c, ...data } : c
               ));
               
-              if (isSupabaseConfigured && currentUserId) {
-                await UserService.updateUserProfile(currentUserId, data);
+              if (saveSuccess || !isSupabaseConfigured) {
+                showToast('个人资料已更新', 'success');
+              } else {
+                showToast('资料已保存（本地），但同步到服务器失败', 'info');
               }
-              
-              showToast('个人资料已更新', 'success');
             }}
           />
         )}
@@ -480,6 +506,11 @@ export default function App() {
         <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[10%] left-[-5%] w-[40%] h-[40%] bg-primary-container/5 blur-[100px] rounded-full" />
       </div>
+
+      {/* 数据库诊断工具 */}
+      {showDebugger && (
+        <DatabaseDebugger onClose={() => setShowDebugger(false)} />
+      )}
     </div>
   );
 }
