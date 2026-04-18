@@ -11,6 +11,30 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
   isAgent?: boolean;
 }) => {
   const [formData, setFormData] = useState(profile);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // 处理头像更换
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setFormData({...formData, avatar: result});
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 预设头像选项
+  const presetAvatars = [
+    "https://picsum.photos/seed/avatar1/200/200",
+    "https://picsum.photos/seed/avatar2/200/200",
+    "https://picsum.photos/seed/avatar3/200/200",
+    "https://picsum.photos/seed/avatar4/200/200",
+    "https://picsum.photos/seed/avatar5/200/200",
+    "https://picsum.photos/seed/avatar6/200/200",
+  ];
 
   return (
     <motion.div 
@@ -33,14 +57,42 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
 
       <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar">
         <div className="max-w-2xl mx-auto space-y-10 pb-20">
-           <div className="flex flex-col items-center gap-4">
+           <div className="flex flex-col items-center gap-6">
              <div className="relative group">
-                <img src={formData.avatar} className="w-28 h-28 rounded-3xl object-cover border-2 border-white/10" />
-                <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer">
-                  <Camera size={24} className="text-white" />
+                <img src={formData.avatar} className="w-28 h-28 rounded-3xl object-cover border-2 border-white/10 shadow-lg shadow-primary/10" />
+                <div 
+                  className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <Camera size={24} className="text-white" />
+                    <span className="text-[10px] text-white font-bold uppercase">更换头像</span>
+                  </div>
                 </div>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleAvatarChange}
+                />
              </div>
-             <p className="text-[10px] uppercase font-bold tracking-widest text-outline">更换头像</p>
+             
+             {/* 预设头像选择 */}
+             <div className="w-full space-y-3">
+               <p className="text-[10px] uppercase font-bold tracking-widest text-outline text-center">或者选择预设头像</p>
+               <div className="grid grid-cols-6 gap-3">
+                 {presetAvatars.map((avatar, index) => (
+                   <div 
+                     key={index}
+                     onClick={() => setFormData({...formData, avatar})}
+                     className={`aspect-square rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${formData.avatar === avatar ? 'border-primary scale-110' : 'border-white/10 hover:border-primary/50'}`}
+                   >
+                     <img src={avatar} className="w-full h-full object-cover" />
+                   </div>
+                 ))}
+               </div>
+             </div>
            </div>
 
            <div className="space-y-6">
@@ -75,7 +127,7 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
                 <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">{isAgent ? '简介 / BIO' : '个人简介 / BIO'}</label>
                 <textarea 
                   rows={4}
-                  value={isAgent ? formData.bio : formData.bio}
+                  value={formData.bio}
                   onChange={(e) => setFormData({...formData, bio: e.target.value})}
                   className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl px-5 py-4 text-sm font-medium transition-all resize-none"
                 />

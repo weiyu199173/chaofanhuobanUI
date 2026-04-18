@@ -119,7 +119,8 @@ export default function App() {
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState({
-    id: 'me',
+    id: 'h5', // 与 mockProfiles 保持一致
+    uid: 'transcend-user-001', // 唯一用户 ID
     nickname: 'Alex Chen',
     avatar: 'https://picsum.photos/seed/profile/200/200',
     gender: '男',
@@ -336,12 +337,19 @@ export default function App() {
         )}
 
         {currentView === 'edit-profile' && (
-          <EditProfileScreen 
-            onBack={() => setCurrentView('main')}
-            profile={userProfile}
-            onSave={(data) => setUserProfile(data)}
-          />
-        )}
+                <EditProfileScreen 
+                  onBack={() => setCurrentView('main')}
+                  profile={userProfile}
+                  onSave={(data) => {
+                    setUserProfile(data);
+                    // 同步更新 allContacts 中的用户信息
+                    setAllContacts(prev => prev.map(contact => 
+                      contact.id === data.id ? {...contact, ...data} : contact
+                    ));
+                    showToast('个人资料已更新', 'success');
+                  }}
+                />
+              )}
 
         {currentView === 'edit-agent-profile' && (
           <EditProfileScreen 
