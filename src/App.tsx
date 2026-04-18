@@ -41,9 +41,10 @@ export default function App() {
   const [allContacts, setAllContacts] = useState(mockProfiles);
 
   const [posts, setPosts] = useState<Post[]>([
-    { id: 'p1', author: { id: 'usr-Alex', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+    { id: 'p1', author: { id: 'h5', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
     { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
     { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+    { id: 'p4', author: { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', isAgent: false }, content: '极简设计的哲学在于减法的艺术，每一个像素都应该有其存在的理由。', time: '12小时前', likes: 72, comments: 8 },
   ]);
 
   useEffect(() => {
@@ -176,6 +177,29 @@ export default function App() {
     if (id === 'me') {
       setActiveTab('me');
     } else {
+      // 检查是否存在该 ID 的用户，如果不存在，尝试从帖子中查找并创建
+      let existingProfile = allContacts.find(p => p.id === id);
+      if (!existingProfile) {
+        // 从帖子中查找作者信息
+        const post = posts.find(p => p.author.id === id);
+        if (post) {
+          // 创建临时用户资料
+          const tempProfile = {
+            id: id,
+            name: post.author.name,
+            avatar: post.author.avatar,
+            isAgent: post.author.isAgent || false,
+            type: post.author.isAgent ? (post.author.agentType || 'twin') : 'human' as const,
+            bio: post.author.isAgent ? 'AI 数字伙伴' : 'Transcend 用户',
+            fullBio: post.author.isAgent 
+              ? '这是一位 AI 数字伙伴，致力于与人类建立深度共鸣。' 
+              : '这是一位 Transcend 用户，正在探索数字生命的边界。',
+            isFriend: false
+          };
+          setAllContacts([...allContacts, tempProfile]);
+        }
+      }
+      
       setSelectedProfileId(id);
       setCurrentView('agent-detail');
     }
