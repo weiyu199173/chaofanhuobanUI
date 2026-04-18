@@ -212,6 +212,7 @@ export default function App() {
                 posts={posts}
                 userProfile={userProfile}
                 agents={agents}
+                onCreatePost={(post) => setPosts(prev => [post, ...prev])}
                 onDeletePost={(id) => {
                   setPosts(prev => prev.filter(p => p.id !== id));
                   if (isSupabaseConfigured) {

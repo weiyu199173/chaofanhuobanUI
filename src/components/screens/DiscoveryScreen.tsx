@@ -8,7 +8,7 @@ import { Post } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export const DiscoveryScreen = ({ 
-  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost
+  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost, onCreatePost
 }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
@@ -17,7 +17,8 @@ export const DiscoveryScreen = ({
   posts: Post[],
   userProfile: any,
   agents: any[],
-  onDeletePost: (id: string) => void
+  onDeletePost: (id: string) => void,
+  onCreatePost?: (post: Post) => void
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +29,8 @@ export const DiscoveryScreen = ({
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [posts, setPosts] = useState<Post[]>(initialPosts);
@@ -53,6 +56,36 @@ export const DiscoveryScreen = ({
     }
   };
 
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setNewPostContent(value);
+    
+    const cursor = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursor);
+    const words = textBeforeCursor.split(/\s/);
+    const lastWord = words[words.length - 1];
+    
+    if (lastWord.startsWith('@')) {
+      setShowMentionMenu(true);
+      setMentionQuery(lastWord.slice(1).toLowerCase());
+    } else {
+      setShowMentionMenu(false);
+    }
+  };
+
+  const handleMentionSelect = (name: string) => {
+    const textarea = document.getElementById('post-textarea') as HTMLTextAreaElement;
+    const cursor = textarea?.selectionStart || newPostContent.length;
+    const textBeforeCursor = newPostContent.slice(0, cursor);
+    const textAfterCursor = newPostContent.slice(cursor);
+    const words = textBeforeCursor.split(/\s/);
+    words.pop();
+    const newTextBefore = (words.length > 0 ? words.join(' ') + ' ' : '') + `@${name.replace(/\s+/g, '')} `;
+    setNewPostContent(newTextBefore + textAfterCursor);
+    setShowMentionMenu(false);
+    textarea?.focus();
+  };
+
   const handleCreatePost = async () => {
     if (!newPostContent.trim() && !selectedImage) return;
     const postData = {
@@ -66,10 +99,12 @@ export const DiscoveryScreen = ({
       if (data && data[0]) {
         const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
         setPosts([newPost, ...posts]);
+        if (onCreatePost) onCreatePost(newPost);
       }
     } else {
       const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
       setPosts([newPost, ...posts]);
+      if (onCreatePost) onCreatePost(newPost);
     }
     setNewPostContent('');
     setSelectedImage(null);
@@ -142,9 +177,28 @@ export const DiscoveryScreen = ({
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                 animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="bg-surface-container-low rounded-2xl p-4 group focus-within:ring-1 focus-within:ring-primary/40 transition-all overflow-hidden"
+                className="bg-surface-container-low rounded-2xl p-4 group focus-within:ring-1 focus-within:ring-primary/40 transition-all overflow-hidden relative"
               >
-                <textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-4" placeholder="在碳基网络中分享想法... 或使用 #话题 和 @Agent" />
+                <textarea id="post-textarea" value={newPostContent} onChange={handleContentChange} className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-4" placeholder="在碳基网络中分享想法... 或使用 #话题 和 @Agent" />
+                <AnimatePresence>
+                  {showMentionMenu && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                      className="absolute left-4 bottom-24 bg-surface-container-highest border border-white/10 rounded-xl shadow-2xl p-2 z-50 min-w-[200px]"
+                    >
+                      <p className="text-[10px] uppercase text-outline px-2 pb-2 font-bold tracking-widest border-b border-white/5 mb-2">提及或呼唤参与者</p>
+                      <div className="max-h-[160px] overflow-y-auto custom-scrollbar space-y-1">
+                        {[...agents, {name: 'Julian Chen', isAgent: false}].filter(u => u.name.toLowerCase().includes(mentionQuery)).map((u, i) => (
+                           <div key={i} onClick={() => handleMentionSelect(u.name)} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/5 rounded-lg cursor-pointer">
+                             <div className={`w-2 h-2 rounded-full ${u.isAgent ? 'bg-primary' : 'bg-secondary'}`} />
+                             <span className="text-xs font-bold">{u.name}</span>
+                             {u.isAgent && <span className="text-[8px] border border-primary/20 text-primary px-1 font-bold rounded ml-auto">Agent</span>}
+                           </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {selectedImage && (
                   <div className="relative inline-block mb-4 ml-2">
                     <img src={selectedImage} className="h-24 w-auto rounded-lg object-cover border border-white/10" />
