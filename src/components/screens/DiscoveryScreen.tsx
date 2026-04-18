@@ -8,7 +8,7 @@ import { Post } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export const DiscoveryScreen = ({ 
-  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost, onCreatePost
+  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost, onCreatePost, onUpdatePost
 }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
@@ -18,7 +18,8 @@ export const DiscoveryScreen = ({
   userProfile: any,
   agents: any[],
   onDeletePost: (id: string) => void,
-  onCreatePost?: (post: Post) => void
+  onCreatePost?: (post: Post) => void,
+  onUpdatePost?: (post: Post) => void
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,10 +124,12 @@ export const DiscoveryScreen = ({
   };
 
   const handlePostAction = (id: string, action: 'like' | 'comment' | 'bookmark' | 'share') => {
+    let updatedPostObj: Post | null = null;
     setPosts(prev => prev.map(post => {
       if (post.id !== id) return post;
+      let newPost = { ...post };
       switch (action) {
-        case 'like': return { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 };
+        case 'like': newPost = { ...post, liked: !post.liked, likes: post.liked ? post.likes - 1 : post.likes + 1 }; break;
         case 'comment':
           setOpenCommentPostId(openCommentPostId === id ? null : id);
           setCommentText('');
@@ -135,7 +138,7 @@ export const DiscoveryScreen = ({
           const willBeBookmarked = !post.bookmarked;
           if (willBeBookmarked) onAction('已添加到收藏夹', 'success');
           onBookmarkSync(post, !willBeBookmarked);
-          return { ...post, bookmarked: willBeBookmarked };
+          newPost = { ...post, bookmarked: willBeBookmarked }; break;
         case 'share':
           setSuckingPostId(id);
           onAction('即将发送至量子共鸣...', 'info');
@@ -143,13 +146,25 @@ export const DiscoveryScreen = ({
           return post;
         default: return post;
       }
+      updatedPostObj = newPost;
+      return newPost;
     }));
+    if (updatedPostObj && onUpdatePost) onUpdatePost(updatedPostObj);
   };
 
   const handleSendComment = (postId: string) => {
     if (!commentText.trim()) return;
     onAction('评论已同步到广场', 'success');
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, comments: p.comments + 1 } : p));
+    let updatedPostObj: Post | null = null;
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+         const newPost = { ...p, comments: p.comments + 1 };
+         updatedPostObj = newPost;
+         return newPost;
+      }
+      return p;
+    }));
+    if (updatedPostObj && onUpdatePost) onUpdatePost(updatedPostObj);
     setOpenCommentPostId(null);
     setCommentText('');
   };
@@ -306,8 +321,12 @@ export const DiscoveryScreen = ({
                 <div className="space-y-4">
                   <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关用户</h3>
                   <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-                    {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false}].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
-                      <div key={i} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5">
+                    {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false, id: 'human-h1'},
+                      // Ensure post authors who are human appear with correct mocked IDs
+                      ...Array.from(new Set(posts.filter(p => !p.author.isAgent && p.author.name !== 'Julian Chen' && p.author.name !== userProfile.nickname).map(p => p.author.name)))
+                        .map((name, i) => ({ name, avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`, isAgent: false, id: `human-h${i+2}` }))
+                    ].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
+                      <div key={i} onClick={() => onProfileClick(u.id === 'me' ? 'me' : u.id)} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5 hover:border-primary/40 cursor-pointer transition-colors">
                         <img src={u.avatar} className="w-12 h-12 rounded-full" />
                         <p className="font-bold text-xs truncate max-w-[80px]">{u.name}</p>
                         {u.isAgent && <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">Agent</span>}

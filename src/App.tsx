@@ -140,8 +140,12 @@ export default function App() {
   };
 
   const handleProfileDetail = (id: string) => {
-    setSelectedProfileId(id);
-    setCurrentView('agent-detail');
+    if (id === 'me') {
+      setActiveTab('me');
+    } else {
+      setSelectedProfileId(id);
+      setCurrentView('agent-detail');
+    }
   };
 
   const handleManageAgent = (id: string) => {
@@ -213,6 +217,7 @@ export default function App() {
                 userProfile={userProfile}
                 agents={agents}
                 onCreatePost={(post) => setPosts(prev => [post, ...prev])}
+                onUpdatePost={(updatedPost) => setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p))}
                 onDeletePost={(id) => {
                   setPosts(prev => prev.filter(p => p.id !== id));
                   if (isSupabaseConfigured) {
