@@ -211,6 +211,13 @@ export default function App() {
                 onMenuOpen={() => setIsSidebarOpen(true)}
                 posts={posts}
                 userProfile={userProfile}
+                agents={agents}
+                onDeletePost={(id) => {
+                  setPosts(prev => prev.filter(p => p.id !== id));
+                  if (isSupabaseConfigured) {
+                    supabase.from('posts').delete().eq('id', id).then();
+                  }
+                }}
               />
             )}
             {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} onMenuOpen={() => setIsSidebarOpen(true)} />}
@@ -270,6 +277,13 @@ export default function App() {
           <MyMomentsScreen 
             onBack={() => setCurrentView('main')}
             moments={myMoments}
+            onDeleteMoment={(id) => {
+              setPosts(prev => prev.filter(p => p.id !== id));
+              if (isSupabaseConfigured) {
+                supabase.from('posts').delete().eq('id', id).then();
+              }
+              showToast('动态已删除', 'success');
+            }}
           />
         )}
 

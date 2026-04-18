@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Menu, Bell, Target, Search, ImageIcon, Bolt, Clock, Sparkles, Heart, MessageCircle, Bookmark, Share 
+  Menu, Bell, Target, Search, ImageIcon, Bolt, Clock, Sparkles, Heart, MessageCircle, Bookmark, Share, Trash2, AtSign, Hash, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
@@ -8,14 +8,16 @@ import { Post } from '../../types';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export const DiscoveryScreen = ({ 
-  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile
+  onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost
 }: { 
   onAction: (msg: string, type?: 'success' | 'info') => void,
   onProfileClick: (id: string) => void,
   onBookmarkSync: (post: Post, isRemoved: boolean) => void,
   onMenuOpen: () => void,
   posts: Post[],
-  userProfile: any
+  userProfile: any,
+  agents: any[],
+  onDeletePost: (id: string) => void
 }) => {
   const [activeFeed, setActiveFeed] = useState<'carbon' | 'silicon'>('carbon');
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,6 +25,10 @@ export const DiscoveryScreen = ({
   const [openCommentPostId, setOpenCommentPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
+  
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [posts, setPosts] = useState<Post[]>(initialPosts);
 
@@ -36,25 +42,37 @@ export const DiscoveryScreen = ({
     return matchesFeed && matchesSearch;
   });
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreatePost = async () => {
-    if (!newPostContent.trim()) return;
+    if (!newPostContent.trim() && !selectedImage) return;
     const postData = {
       author_data: { name: userProfile.nickname, avatar: userProfile.avatar, isAgent: false },
-      content: newPostContent, image_url: null, likes_count: 0, comments_count: 0,
+      content: newPostContent, image_url: selectedImage, likes_count: 0, comments_count: 0,
       user_id: isSupabaseConfigured ? (await supabase.auth.getUser()).data.user?.id : 'demo'
     };
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.from('posts').insert([postData]).select();
       if (error) { onAction('发布失败: ' + error.message, 'info'); return; }
       if (data && data[0]) {
-        const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', likes: 0, comments: 0 };
+        const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
         setPosts([newPost, ...posts]);
       }
     } else {
-      const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', likes: 0, comments: 0 };
+      const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
       setPosts([newPost, ...posts]);
     }
     setNewPostContent('');
+    setSelectedImage(null);
     if (activeFeed === 'silicon') setActiveFeed('carbon');
   };
 
@@ -90,7 +108,11 @@ export const DiscoveryScreen = ({
     setCommentText('');
   };
 
-  const renderContent = (content: string) => content.split(/(#\S+)/g).map((part, i) => part.startsWith('#') ? <span key={i} className="text-primary font-bold hover:underline cursor-pointer">{part}</span> : part);
+  const renderContent = (content: string) => content.split(/([#@]\S+)/g).map((part, i) => {
+    if (part.startsWith('#')) return <span key={i} className="text-primary font-bold hover:underline cursor-pointer">{part}</span>;
+    if (part.startsWith('@')) return <span key={i} className="text-secondary font-bold hover:underline cursor-pointer">{part}</span>;
+    return part;
+  });
 
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
@@ -114,23 +136,120 @@ export const DiscoveryScreen = ({
             <button onClick={() => setActiveFeed('carbon')} className={`flex-1 py-2 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all ${activeFeed === 'carbon' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-outline hover:text-on-surface'}`}>碳基部落</button>
             <button onClick={() => setActiveFeed('silicon')} className={`flex-1 py-2 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all ${activeFeed === 'silicon' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'text-outline hover:text-on-surface'}`}>硅基共鸣</button>
           </div>
-          <section className="bg-surface-container-low rounded-2xl p-4 mb-8 group focus-within:ring-1 focus-within:ring-primary/40 transition-all">
-            <textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-12" placeholder={`在${activeFeed === 'carbon' ? '碳基' : '硅基'}网络中分享想法... #话题`} />
-            <div className="flex items-center justify-between border-t border-white/5 pt-4">
-              <div className="flex gap-4 text-outline/60">
-                <LaserButton className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
-                <LaserButton className="p-1 rounded-sm"><Bolt size={20} className="hover:text-primary transition-colors" /></LaserButton>
-                <LaserButton className="p-1 rounded-sm"><Clock size={20} className="hover:text-primary transition-colors" /></LaserButton>
-              </div>
-              <LaserButton onClick={handleCreatePost} disabled={!newPostContent.trim()} className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline">发布</LaserButton>
-            </div>
-          </section>
-          <div className="flex items-center gap-4 bg-surface-container h-12 px-6 rounded-full border border-white/5 group focus-within:border-primary/40 transition-all">
+          <AnimatePresence>
+            {activeFeed === 'carbon' && (
+              <motion.section 
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 32 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                className="bg-surface-container-low rounded-2xl p-4 group focus-within:ring-1 focus-within:ring-primary/40 transition-all overflow-hidden"
+              >
+                <textarea value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-4" placeholder="在碳基网络中分享想法... 或使用 #话题 和 @Agent" />
+                {selectedImage && (
+                  <div className="relative inline-block mb-4 ml-2">
+                    <img src={selectedImage} className="h-24 w-auto rounded-lg object-cover border border-white/10" />
+                    <button onClick={() => setSelectedImage(null)} className="absolute -top-2 -right-2 bg-background border border-white/10 p-1 rounded-full text-outline hover:text-error transition-colors">
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-white/5 pt-4">
+                  <div className="flex gap-4 text-outline/60">
+                    <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
+                    <LaserButton onClick={() => fileInputRef.current?.click()} className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                    <LaserButton onClick={() => setNewPostContent(prev => prev + ' #')} className="p-1 rounded-sm"><Hash size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                    <LaserButton onClick={() => setNewPostContent(prev => prev + ' @')} className="p-1 rounded-sm"><AtSign size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                  </div>
+                  <LaserButton onClick={handleCreatePost} disabled={!newPostContent.trim() && !selectedImage} className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline">发布</LaserButton>
+                </div>
+              </motion.section>
+            )}
+          </AnimatePresence>
+          <div className="flex items-center gap-4 bg-surface-container h-12 px-6 rounded-full border border-white/5 group focus-within:border-primary/40 transition-all relative">
             <Search size={18} className="text-outline group-focus-within:text-primary" />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" placeholder="检索动态、话题或连接协议..." type="text" />
+            <input 
+              value={searchQuery} 
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (e.target.value.length > 0) !isSearching && setIsSearching(true);
+              }} 
+              onFocus={() => setIsSearching(true)}
+              className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
+              placeholder="检索动态、话题或连接协议..." 
+              type="text" 
+            />
+            <AnimatePresence>
+              {isSearching && (
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.5 }}
+                  onClick={() => {
+                    setIsSearching(false);
+                    setSearchQuery('');
+                  }}
+                  className="text-[10px] font-bold text-outline hover:text-on-surface uppercase tracking-widest pl-2"
+                >
+                  Cancel
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-        <section className="mb-8 px-2 overflow-x-auto custom-scrollbar pb-2">
+        
+        <AnimatePresence mode="wait">
+          {isSearching ? (
+            <motion.div 
+              key="search-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="px-6 space-y-6"
+            >
+              <div className="flex gap-2 p-1 bg-surface-container-high rounded-full border border-white/5 w-max">
+                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest bg-primary text-on-primary">综合检索</span>
+                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest text-outline">用户/Agent</span>
+                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest text-outline">话题</span>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关用户</h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                  {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false}].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
+                    <div key={i} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5">
+                      <img src={u.avatar} className="w-12 h-12 rounded-full" />
+                      <p className="font-bold text-xs truncate max-w-[80px]">{u.name}</p>
+                      {u.isAgent && <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">Agent</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关动态</h3>
+                <div className="space-y-4">
+                  {filteredPosts.length > 0 ? filteredPosts.map(post => (
+                    <div key={post.id} className="bg-surface-container-low p-4 rounded-2xl border border-white/5 space-y-2">
+                       <div className="flex items-center gap-2">
+                          <img src={post.author.avatar} className="w-6 h-6 rounded-full" />
+                          <span className="font-bold text-xs">{post.author.name}</span>
+                       </div>
+                       <p className="text-sm font-light leading-relaxed">{renderContent(post.content)}</p>
+                    </div>
+                  )) : (
+                    <p className="text-center text-outline text-xs py-8">未找到相关内容</p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="feed-view"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <section className="mb-8 px-2 overflow-x-auto custom-scrollbar pb-2">
           <div className="flex gap-4 px-4">
             {posts.filter(p => p.image).slice(0, 5).map(post => (
               <motion.div key={`story-${post.id}`} whileTap={{ scale: 0.95 }} onClick={() => {}} className="min-w-[70px] flex flex-col items-center gap-2 cursor-pointer group">
@@ -155,7 +274,15 @@ export const DiscoveryScreen = ({
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-headline font-bold text-sm tracking-tight">{post.author.name}</span>
                       {post.author.isAgent && <span className={`text-[9px] px-2 py-0.5 rounded-sm border font-bold uppercase tracking-[0.1em] ${post.author.agentType === 'super' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-secondary/10 text-secondary border-secondary/20'}`}>{post.author.agentType === 'super' ? '超级伙伴' : '孪生伙伴'}</span>}
-                      <span className="text-outline text-[10px] ml-auto font-mono">{post.time}</span>
+                      
+                      <div className="ml-auto flex items-center gap-3">
+                        <span className="text-outline text-[10px] font-mono">{post.time}</span>
+                        {(post.author.name === userProfile.nickname || agents.some((a: any) => a.name === post.author.name)) && (
+                          <motion.button whileTap={{ scale: 0.8 }} onClick={() => onDeletePost(post.id)} className="text-outline/40 hover:text-error transition-colors">
+                            <Trash2 size={14} />
+                          </motion.button>
+                        )}
+                      </div>
                     </div>
                     <p className="leading-relaxed mb-4 text-sm text-on-surface/90 font-light">{renderContent(post.content)}</p>
                     {post.image && (
@@ -195,7 +322,10 @@ export const DiscoveryScreen = ({
               </motion.article>
             ))}
           </AnimatePresence>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

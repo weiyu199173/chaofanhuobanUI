@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone } from 'lucide-react';
+import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone, Trash2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { LaserButton } from '../Common';
 import { Post } from '../../types';
@@ -142,7 +142,7 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
   );
 };
 
-export const MyMomentsScreen = ({ onBack, moments }: { onBack: () => void, moments: Post[] }) => {
+export const MyMomentsScreen = ({ onBack, moments, onDeleteMoment }: { onBack: () => void, moments: Post[], onDeleteMoment?: (id: string) => void }) => {
   return (
     <motion.div 
       initial={{ x: '100%' }} 
@@ -175,7 +175,12 @@ export const MyMomentsScreen = ({ onBack, moments }: { onBack: () => void, momen
                              <p className="text-[10px] text-outline uppercase font-bold tracking-widest">{moment.time}</p>
                           </div>
                        </div>
-                       <MoreVertical size={18} className="text-outline cursor-pointer" />
+                       <div className="flex items-center gap-4">
+                         {onDeleteMoment && (
+                           <Trash2 size={16} className="text-outline/40 hover:text-error cursor-pointer transition-colors" onClick={() => onDeleteMoment(moment.id)} />
+                         )}
+                         <MoreVertical size={18} className="text-outline cursor-pointer" />
+                       </div>
                     </div>
                     <p className="text-sm font-light leading-relaxed">{moment.content}</p>
                     {moment.image && (
