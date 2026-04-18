@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone, Trash2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone, Trash2, Download } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
 import { Post } from '../../types';
+import { QRCodeGenerator } from '../../utils/qrCode';
 
 export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
   onBack: () => void;
@@ -11,7 +12,19 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
   isAgent?: boolean;
 }) => {
   const [formData, setFormData] = useState(profile);
+  const [showQRModal, setShowQRModal] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // 生成用户二维码
+  const qrCodeUrl = useMemo(() => {
+    return QRCodeGenerator.generateUserQR({
+      id: formData.id,
+      uid: formData.uid || formData.id,
+      nickname: formData.nickname || formData.name,
+      avatar: formData.avatar,
+      accountId: formData.accountId
+    });
+  }, [formData]);
 
   // 处理头像更换
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,6 +37,17 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // 处理二维码下载
+  const handleDownloadQR = () => {
+    QRCodeGenerator.downloadQR({
+      id: formData.id,
+      uid: formData.uid || formData.id,
+      nickname: formData.nickname || formData.name,
+      avatar: formData.avatar,
+      accountId: formData.accountId
+    }, `${formData.nickname || formData.name || 'user'}-transcend-qr.png`);
   };
 
   // 预设头像选项
@@ -163,10 +187,10 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
 
                   <div className="grid grid-cols-2 gap-6 pt-4">
                     <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 space-y-2">
-                        <label className="text-[9px] uppercase font-bold tracking-widest text-outline">账号 ID</label>
-                        <p className="font-mono font-bold text-xs tracking-wider">{formData.accountId}</p>
+                        <label className="text-[9px] uppercase font-bold tracking-widest text-outline">账号 UID</label>
+                        <p className="font-mono font-bold text-xs tracking-wider">{formData.uid || formData.id}</p>
                     </div>
-                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-high transition-all">
+                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-high transition-all" onClick={() => setShowQRModal(true)}>
                         <QrCode size={24} className="text-primary" />
                         <span className="text-[9px] uppercase font-bold tracking-widest">我的二维码</span>
                     </div>
@@ -190,6 +214,53 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
            </div>
         </div>
       </main>
+
+      {/* 二维码模态框 */}
+      <AnimatePresence>
+        {showQRModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-6"
+            onClick={() => setShowQRModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-surface-container rounded-3xl p-8 border border-white/10 shadow-2xl space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-headline font-bold text-on-surface">我的二维码</h3>
+                <button onClick={() => setShowQRModal(false)} className="p-2 rounded-full hover:bg-surface-container-high text-outline transition-colors">
+                  <ChevronLeft size={24} />
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center space-y-4">
+                <div className="p-3 bg-white rounded-2xl shadow-lg">
+                  <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
+                </div>
+
+                <div className="text-center space-y-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <img src={formData.avatar} className="w-10 h-10 rounded-full" />
+                    <p className="font-bold text-on-surface">{formData.nickname || formData.name}</p>
+                  </div>
+                  <p className="text-[10px] text-outline font-mono uppercase tracking-widest">{formData.uid || formData.id}</p>
+                </div>
+
+                <LaserButton onClick={handleDownloadQR} className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                  <Download size={18} />
+                  保存二维码
+                </LaserButton>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

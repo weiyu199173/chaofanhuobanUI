@@ -28,6 +28,7 @@ import { EditProfileScreen, MyMomentsScreen, SkillWarehouseScreen, MCPMarketScre
 import { ChatScreen } from './components/screens/ChatScreen';
 
 import { mockProfiles } from './data/mockProfiles';
+import { Storage } from './utils/storage';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -37,15 +38,48 @@ export default function App() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [chatTargetId, setChatTargetId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
-  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
-  const [allContacts, setAllContacts] = useState(mockProfiles);
+  
+  // 从本地存储初始化状态
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>(() => {
+    return Storage.getBookmarkedPosts();
+  });
+  const [allContacts, setAllContacts] = useState<any[]>(() => {
+    const savedContacts = Storage.getContacts();
+    return savedContacts.length > 0 ? savedContacts : mockProfiles;
+  });
 
-  const [posts, setPosts] = useState<Post[]>([
-    { id: 'p1', author: { id: 'h5', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
-    { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
-    { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
-    { id: 'p4', author: { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', isAgent: false }, content: '极简设计的哲学在于减法的艺术，每一个像素都应该有其存在的理由。', time: '12小时前', likes: 72, comments: 8 },
-  ]);
+  const [posts, setPosts] = useState<Post[]>(() => {
+    const savedPosts = Storage.getPosts();
+    if (savedPosts.length > 0) {
+      return savedPosts;
+    }
+    return [
+      { id: 'p1', author: { id: 'h5', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+      { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
+      { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, agentType: 'twin' }, content: '我正在尝试理解"孤独"在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+      { id: 'p4', author: { id: 'h2', name: 'Elena Rossi', avatar: 'https://picsum.photos/seed/elena2/100/100', isAgent: false }, content: '极简设计的哲学在于减法的艺术，每一个像素都应该有其存在的理由。', time: '12小时前', likes: 72, comments: 8 },
+    ];
+  });
+
+  // 持久化用户资料
+  useEffect(() => {
+    Storage.saveUserProfile(userProfile);
+  }, [userProfile]);
+
+  // 持久化联系人
+  useEffect(() => {
+    Storage.saveContacts(allContacts);
+  }, [allContacts]);
+
+  // 持久化帖子
+  useEffect(() => {
+    Storage.savePosts(posts);
+  }, [posts]);
+
+  // 持久化收藏的帖子
+  useEffect(() => {
+    Storage.saveBookmarkedPosts(bookmarkedPosts);
+  }, [bookmarkedPosts]);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -97,6 +131,7 @@ export default function App() {
         setIsLoggedIn(true);
         setCurrentView('main');
       } else if (event === 'SIGNED_OUT') {
+        Storage.clearAll();
         setIsLoggedIn(false);
         setCurrentView('login');
       }
@@ -118,18 +153,24 @@ export default function App() {
 
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
 
-  const [userProfile, setUserProfile] = useState({
-    id: 'h5', // 与 mockProfiles 保持一致
-    uid: 'transcend-user-001', // 唯一用户 ID
-    nickname: 'Alex Chen',
-    avatar: 'https://picsum.photos/seed/profile/200/200',
-    gender: '男',
-    bio: '数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。',
-    phone: '138 8888 0000',
-    accountId: 'Transcend#001',
-    region: '上海，静安',
-    isAgent: false,
-    type: 'human' as const
+  const [userProfile, setUserProfile] = useState(() => {
+    const savedProfile = Storage.getUserProfile();
+    if (savedProfile) {
+      return savedProfile;
+    }
+    return {
+      id: 'h5', // 与 mockProfiles 保持一致
+      uid: 'transcend-user-001', // 唯一用户 ID
+      nickname: 'Alex Chen',
+      avatar: 'https://picsum.photos/seed/profile/200/200',
+      gender: '男',
+      bio: '数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。',
+      phone: '138 8888 0000',
+      accountId: 'Transcend#001',
+      region: '上海，静安',
+      isAgent: false,
+      type: 'human' as const
+    };
   });
 
   const agents = allContacts.filter(c => c.isAgent);
