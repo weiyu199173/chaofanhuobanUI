@@ -89,39 +89,24 @@ export class UserService {
       console.log('🔄 正在更新用户资料...');
       console.log('   用户ID:', userId);
       
-      // 最简单的数据 - 只放必填字段！
-      const simpleData = {
+      // 准备数据
+      const data = {
         id: userId,
         nickname: profileData.nickname || '用户',
         avatar: profileData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
         bio: profileData.bio || '',
       };
 
-      console.log('📤 尝试插入数据:', simpleData);
+      console.log('📤 尝试保存数据:', data);
 
-      // 先用简单插入，不检查是否存在
-      let { error } = await supabase
+      // 使用 upsert - 自动处理插入或更新
+      const { error } = await supabase
         .from('users')
-        .insert(simpleData);
+        .upsert(data);
 
-      // 如果插入失败（可能是已存在），就尝试更新
       if (error) {
-        console.log('⚠️ 插入失败，可能已存在，尝试更新...');
-        console.log('错误:', error);
-        
-        // 先删除id字段
-        const updateData = { ...simpleData };
-        delete updateData.id;
-        
-        const { error: updateError } = await supabase
-          .from('users')
-          .update(updateData)
-          .eq('id', userId);
-          
-        if (updateError) {
-          console.error('❌ 更新也失败:', updateError);
-          return false;
-        }
+        console.error('❌ 数据库操作失败:', error);
+        return false;
       }
 
       console.log('✅ 用户资料保存成功！');
