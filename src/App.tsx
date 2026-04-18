@@ -126,10 +126,14 @@ export default function App() {
     phone: '138 8888 0000',
     accountId: 'Transcend#001',
     region: '上海，静安',
-    isAgent: false
+    isAgent: false,
+    type: 'human' as const
   });
 
   const agents = allContacts.filter(c => c.isAgent);
+  
+  // 好友功能状态
+  const [friends, setFriends] = useState<ContactProfile[]>(allContacts.filter(c => c.isFriend));
 
   const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
 
@@ -140,6 +144,32 @@ export default function App() {
     setIsLoggedIn(false);
     setCurrentView('login');
     setIsSidebarOpen(false);
+  };
+
+  // 添加好友
+  const handleAddFriend = (profileId: string) => {
+    const profile = allContacts.find(c => c.id === profileId);
+    if (profile) {
+      const updatedContacts = allContacts.map(c => 
+        c.id === profileId ? { ...c, isFriend: true } : c
+      );
+      setAllContacts(updatedContacts);
+      setFriends(updatedContacts.filter(c => c.isFriend));
+    }
+  };
+
+  // 移除好友
+  const handleRemoveFriend = (profileId: string) => {
+    const updatedContacts = allContacts.map(c => 
+      c.id === profileId ? { ...c, isFriend: false } : c
+    );
+    setAllContacts(updatedContacts);
+    setFriends(updatedContacts.filter(c => c.isFriend));
+  };
+
+  // 检查是否是好友
+  const isFriend = (profileId: string) => {
+    return friends.some(f => f.id === profileId);
   };
 
   const handleProfileDetail = (id: string) => {
@@ -221,10 +251,26 @@ export default function App() {
                 agents={allContacts}
                 onCreatePost={(post) => setPosts(prev => [post, ...prev])}
                 onUpdatePost={(updatedPost) => setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p))}
-                onDeletePost={(id) => {
+                onDeletePost={async (id) => {
+                  // 1. 乐观更新 UI
                   setPosts(prev => prev.filter(p => p.id !== id));
+                  
+                  // 2. 同步到数据库
                   if (isSupabaseConfigured) {
-                    supabase.from('posts').delete().eq('id', id).then();
+                    try {
+                      const { error } = await supabase.from('posts').delete().eq('id', id);
+                      if (error) {
+                        console.error('删除帖子失败:', error);
+                        showToast('删除失败: ' + error.message, 'info');
+                        // 如果数据库删除失败，恢复 UI
+                        // 注意：这里需要重新获取帖子列表或者有备份数据
+                      } else {
+                        showToast('帖子已删除', 'success');
+                      }
+                    } catch (err) {
+                      console.error('删除帖子出错:', err);
+                      showToast('删除出错，请稍后重试', 'info');
+                    }
                   }
                 }}
               />
@@ -288,12 +334,27 @@ export default function App() {
           <MyMomentsScreen 
             onBack={() => setCurrentView('main')}
             moments={myMoments}
-            onDeleteMoment={(id) => {
+            onDeleteMoment={async (id) => {
+              // 1. 乐观更新 UI
               setPosts(prev => prev.filter(p => p.id !== id));
+              
+              // 2. 同步到数据库
               if (isSupabaseConfigured) {
-                supabase.from('posts').delete().eq('id', id).then();
+                try {
+                  const { error } = await supabase.from('posts').delete().eq('id', id);
+                  if (error) {
+                    console.error('删除动态失败:', error);
+                    showToast('删除失败: ' + error.message, 'info');
+                  } else {
+                    showToast('动态已删除', 'success');
+                  }
+                } catch (err) {
+                  console.error('删除动态出错:', err);
+                  showToast('删除出错，请稍后重试', 'info');
+                }
+              } else {
+                showToast('动态已删除', 'success');
               }
-              showToast('动态已删除', 'success');
             }}
           />
         )}
@@ -331,6 +392,9 @@ export default function App() {
             allContacts={allContacts}
             onBack={() => setCurrentView('main')} 
             onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }}
+            onAddFriend={handleAddFriend}
+            onRemoveFriend={handleRemoveFriend}
+            isFriend={selectedProfileId ? isFriend(selectedProfileId) : false}
           />
         )}
       </AnimatePresence>

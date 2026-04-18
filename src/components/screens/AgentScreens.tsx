@@ -2,13 +2,36 @@ import React from 'react';
 import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts }: { 
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onAddFriend, onRemoveFriend, isFriend }: { 
   profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
   allContacts: any[];
+  onAddFriend?: (id: string) => void;
+  onRemoveFriend?: (id: string) => void;
+  isFriend?: boolean;
 }) => {
-  const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
+  // 查找匹配的个人资料，如果找不到则创建一个默认的
+  let profile = allContacts.find(p => p.id === profileId);
+  
+  if (!profile && profileId) {
+    // 创建默认个人资料
+    profile = {
+      id: profileId,
+      name: '用户',
+      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${profileId}`,
+      isAgent: false,
+      type: 'human',
+      bio: '暂无简介',
+      fullBio: '暂无详细简介',
+      isFriend: false
+    };
+  }
+  
+  if (!profile) {
+    profile = allContacts[0];
+  }
+  
   const isAgent = profile.type !== 'human';
 
   return (
@@ -135,6 +158,24 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts 
 
       <footer className="fixed bottom-0 left-0 w-full p-6 bg-background/80 backdrop-blur-3xl border-t border-white/5 space-y-4">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
+          {!isAgent && (
+            <button 
+              onClick={() => {
+                if (isFriend && onRemoveFriend) {
+                  onRemoveFriend(profile.id);
+                } else if (!isFriend && onAddFriend) {
+                  onAddFriend(profile.id);
+                }
+              }}
+              className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center transition-all active:scale-90 ${
+                isFriend 
+                  ? 'bg-surface-container-highest border border-white/5 text-outline hover:bg-error/10 hover:text-error hover:border-error/30' 
+                  : 'bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20'
+              }`}
+            >
+              <Heart size={24} fill={isFriend ? 'currentColor' : 'none'} />
+            </button>
+          )}
           <button 
             onClick={() => {
               onChatClick(profile.id);
@@ -143,10 +184,19 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts 
           >
             <MessageCircle size={20} /> 进入对话
           </button>
-          <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
-            <Bolt size={24} />
-          </button>
+          {isAgent && (
+            <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
+              <Bolt size={24} />
+            </button>
+          )}
         </div>
+        {!isAgent && (
+          <div className="max-w-2xl mx-auto text-center">
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${isFriend ? 'text-primary' : 'text-outline/60'}`}>
+              {isFriend ? '已添加为好友' : '添加为好友'}
+            </span>
+          </div>
+        )}
       </footer>
     </motion.div>
   );
