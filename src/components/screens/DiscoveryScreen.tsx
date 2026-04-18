@@ -29,8 +29,10 @@ export const DiscoveryScreen = ({
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchTab, setSearchTab] = useState<'all' | 'users' | 'topics'>('all');
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionCardProfile, setMentionCardProfile] = useState<any | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const [posts, setPosts] = useState<Post[]>(initialPosts);
@@ -39,9 +41,18 @@ export const DiscoveryScreen = ({
   React.useEffect(() => { setPosts(initialPosts); }, [initialPosts]);
 
   const filteredPosts = posts.filter(post => {
-    const matchesFeed = activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent;
-    const matchesSearch = post.author.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         post.content.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFeed = isSearching ? true : (activeFeed === 'carbon' ? !post.author.isAgent : post.author.isAgent);
+    let matchesSearch = false;
+    
+    if (searchTab === 'topics') {
+       matchesSearch = post.content.toLowerCase().includes(searchQuery.toLowerCase());
+    } else if (searchTab === 'users') {
+       matchesSearch = post.author.name.toLowerCase().includes(searchQuery.toLowerCase());
+    } else {
+       matchesSearch = post.author.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                       post.content.toLowerCase().includes(searchQuery.toLowerCase());
+    }
+    
     return matchesFeed && matchesSearch;
   });
 
@@ -143,9 +154,32 @@ export const DiscoveryScreen = ({
     setCommentText('');
   };
 
-  const renderContent = (content: string) => content.split(/([#@]\S+)/g).map((part, i) => {
-    if (part.startsWith('#')) return <span key={i} className="text-primary font-bold hover:underline cursor-pointer">{part}</span>;
-    if (part.startsWith('@')) return <span key={i} className="text-secondary font-bold hover:underline cursor-pointer">{part}</span>;
+  const handleMentionClick = (name: string) => {
+    let profile = agents.find(a => a.name.replace(/\s+/g, '') === name || a.name === name);
+    if (!profile) {
+      if (userProfile.nickname.replace(/\s+/g, '') === name || userProfile.nickname === name) {
+         profile = { ...userProfile, name: userProfile.nickname, isAgent: false, id: 'me' };
+      } else {
+         const postAuthor = posts.find(p => p.author.name.replace(/\s+/g, '') === name || p.author.name === name)?.author;
+         if (postAuthor) profile = postAuthor;
+         else profile = { name: name, avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${name}`, isAgent: false, id: `usr-${name}` };
+      }
+    }
+    setMentionCardProfile(profile);
+  };
+
+  const handleTopicClick = (topic: string) => {
+    setSearchQuery(topic);
+    setSearchTab('topics');
+    setIsSearching(true);
+  };
+
+  const renderContent = (content: string) => content.split(/([#@][\w\-\u4e00-\u9fa5]+)/g).map((part, i) => {
+    if (part.startsWith('#')) return <span key={i} onClick={(e) => { e.stopPropagation(); handleTopicClick(part); }} className="text-primary font-bold hover:underline cursor-pointer relative z-10">{part}</span>;
+    if (part.startsWith('@')) {
+       const name = part.substring(1);
+       return <span key={i} onClick={(e) => { e.stopPropagation(); handleMentionClick(name); }} className="text-secondary font-bold hover:underline cursor-pointer relative z-10">{part}</span>;
+    }
     return part;
   });
 
@@ -180,25 +214,6 @@ export const DiscoveryScreen = ({
                 className="bg-surface-container-low rounded-2xl p-4 group focus-within:ring-1 focus-within:ring-primary/40 transition-all overflow-hidden relative"
               >
                 <textarea id="post-textarea" value={newPostContent} onChange={handleContentChange} className="w-full bg-transparent border-none focus:ring-0 text-sm placeholder:text-outline/40 min-h-[100px] resize-none pb-4" placeholder="在碳基网络中分享想法... 或使用 #话题 和 @Agent" />
-                <AnimatePresence>
-                  {showMentionMenu && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                      className="absolute left-4 bottom-24 bg-surface-container-highest border border-white/10 rounded-xl shadow-2xl p-2 z-50 min-w-[200px]"
-                    >
-                      <p className="text-[10px] uppercase text-outline px-2 pb-2 font-bold tracking-widest border-b border-white/5 mb-2">提及或呼唤参与者</p>
-                      <div className="max-h-[160px] overflow-y-auto custom-scrollbar space-y-1">
-                        {[...agents, {name: 'Julian Chen', isAgent: false}].filter(u => u.name.toLowerCase().includes(mentionQuery)).map((u, i) => (
-                           <div key={i} onClick={() => handleMentionSelect(u.name)} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/5 rounded-lg cursor-pointer">
-                             <div className={`w-2 h-2 rounded-full ${u.isAgent ? 'bg-primary' : 'bg-secondary'}`} />
-                             <span className="text-xs font-bold">{u.name}</span>
-                             {u.isAgent && <span className="text-[8px] border border-primary/20 text-primary px-1 font-bold rounded ml-auto">Agent</span>}
-                           </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
                 {selectedImage && (
                   <div className="relative inline-block mb-4 ml-2">
                     <img src={selectedImage} className="h-24 w-auto rounded-lg object-cover border border-white/10" />
@@ -216,6 +231,27 @@ export const DiscoveryScreen = ({
                   </div>
                   <LaserButton onClick={handleCreatePost} disabled={!newPostContent.trim() && !selectedImage} className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline">发布</LaserButton>
                 </div>
+                <AnimatePresence>
+                  {showMentionMenu && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                      className="origin-top overflow-hidden mt-4 pt-4 border-t border-white/5"
+                    >
+                      <p className="text-[9px] uppercase text-outline font-bold tracking-widest mb-3">呼唤网络实体</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false, id: 'human-auth-1'}].filter(u => u.name.toLowerCase().includes(mentionQuery)).slice(0, 4).map((u, i) => (
+                           <div key={i} onClick={() => handleMentionSelect(u.name)} className="flex items-center gap-3 p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-white/5 hover:border-primary/40 cursor-pointer transition-all">
+                             <img src={u.avatar} className="w-8 h-8 rounded-full object-cover" />
+                             <div className="min-w-0">
+                               <p className="text-xs font-bold truncate">{u.name}</p>
+                               <span className="text-[8px] text-outline font-mono uppercase tracking-wider truncate block">{u.isAgent ? `AG-${u.id.substring(0, 6)}` : `USR-${(u.id || '').substring(0, 6)}`}</span>
+                             </div>
+                           </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.section>
             )}
           </AnimatePresence>
@@ -261,40 +297,44 @@ export const DiscoveryScreen = ({
               className="px-6 space-y-6"
             >
               <div className="flex gap-2 p-1 bg-surface-container-high rounded-full border border-white/5 w-max">
-                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest bg-primary text-on-primary">综合检索</span>
-                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest text-outline">用户/Agent</span>
-                <span className="px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest text-outline">话题</span>
+                <button onClick={() => setSearchTab('all')} className={`px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest ${searchTab === 'all' ? 'bg-primary text-on-primary' : 'text-outline hover:text-on-surface'}`}>综合检索</button>
+                <button onClick={() => setSearchTab('users')} className={`px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest ${searchTab === 'users' ? 'bg-primary text-on-primary' : 'text-outline hover:text-on-surface'}`}>用户/Agent</button>
+                <button onClick={() => setSearchTab('topics')} className={`px-4 py-1.5 rounded-full font-bold text-[10px] uppercase tracking-widest ${searchTab === 'topics' ? 'bg-primary text-on-primary' : 'text-outline hover:text-on-surface'}`}>话题</button>
               </div>
               
-              <div className="space-y-4">
-                <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关用户</h3>
-                <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-                  {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false}].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
-                    <div key={i} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5">
-                      <img src={u.avatar} className="w-12 h-12 rounded-full" />
-                      <p className="font-bold text-xs truncate max-w-[80px]">{u.name}</p>
-                      {u.isAgent && <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">Agent</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关动态</h3>
+              {searchTab !== 'topics' && (
                 <div className="space-y-4">
-                  {filteredPosts.length > 0 ? filteredPosts.map(post => (
-                    <div key={post.id} className="bg-surface-container-low p-4 rounded-2xl border border-white/5 space-y-2">
-                       <div className="flex items-center gap-2">
-                          <img src={post.author.avatar} className="w-6 h-6 rounded-full" />
-                          <span className="font-bold text-xs">{post.author.name}</span>
-                       </div>
-                       <p className="text-sm font-light leading-relaxed">{renderContent(post.content)}</p>
-                    </div>
-                  )) : (
-                    <p className="text-center text-outline text-xs py-8">未找到相关内容</p>
-                  )}
+                  <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">相关用户</h3>
+                  <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
+                    {[...agents, {name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false}].filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase() || 'a')).map((u, i) => (
+                      <div key={i} className="min-w-[100px] shrink-0 bg-surface-container-low p-4 rounded-2xl flex flex-col items-center gap-2 border border-white/5">
+                        <img src={u.avatar} className="w-12 h-12 rounded-full" />
+                        <p className="font-bold text-xs truncate max-w-[80px]">{u.name}</p>
+                        {u.isAgent && <span className="text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">Agent</span>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {searchTab !== 'users' && (
+                <div className="space-y-4">
+                  <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline">{searchTab === 'topics' ? `话题 ${searchQuery.startsWith('#') ? searchQuery : '#'+searchQuery} 下的动态` : '相关动态'}</h3>
+                  <div className="space-y-4">
+                  {filteredPosts.length > 0 ? filteredPosts.map(post => (
+                     <div key={post.id} className="bg-surface-container-low p-4 rounded-2xl border border-white/5 space-y-2">
+                        <div className="flex items-center gap-2">
+                           <img src={post.author.avatar} className="w-6 h-6 rounded-full" />
+                           <span className="font-bold text-xs">{post.author.name}</span>
+                        </div>
+                        <p className="text-sm font-light leading-relaxed">{renderContent(post.content)}</p>
+                     </div>
+                   )) : (
+                     <p className="text-center text-outline text-xs py-8">未找到相关内容</p>
+                   )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div 
@@ -381,6 +421,46 @@ export const DiscoveryScreen = ({
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {mentionCardProfile && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm" onClick={() => setMentionCardProfile(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xs bg-surface-container-highest border border-white/10 rounded-3xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className={`absolute top-0 left-0 w-full h-1 ${mentionCardProfile.isAgent ? 'bg-primary' : 'bg-secondary'}`} />
+              <div className="flex flex-col items-center gap-4 text-center">
+                 <div className="relative">
+                   <img src={mentionCardProfile.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${mentionCardProfile.name}`} className={`w-24 h-24 rounded-full border-4 ${mentionCardProfile.isAgent ? 'border-primary/20' : 'border-secondary/20'} object-cover`} referrerPolicy="no-referrer" />
+                   {mentionCardProfile.isAgent && <div className="absolute -bottom-2 -right-2 bg-primary w-8 h-8 rounded-full flex items-center justify-center border-4 border-surface-container-highest"><Sparkles size={14} className="text-on-primary fill-current" /></div>}
+                 </div>
+                 <div>
+                    <h3 className="font-headline font-bold text-xl tracking-tight">{mentionCardProfile.name}</h3>
+                    <p className="text-xs text-outline font-mono uppercase tracking-widest mt-1">
+                      {mentionCardProfile.isAgent ? `AG-${(mentionCardProfile.id || '').toString().substring(0,6) || 'XXXX'}` : `USR-${(mentionCardProfile.id || '').toString().substring(0,6) || 'XXXX'}`}
+                    </p>
+                 </div>
+                 <div className="flex justify-center flex-wrap gap-2 mt-2">
+                   {mentionCardProfile.isAgent ? (
+                     <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded font-bold uppercase tracking-widest">硅基伙伴 / AI</span>
+                   ) : (
+                     <span className="text-[10px] bg-secondary/10 text-secondary border border-secondary/20 px-2 py-1 rounded font-bold uppercase tracking-widest">碳基人类 / Human</span>
+                   )}
+                 </div>
+                 <div className="flex gap-3 w-full mt-4">
+                   <LaserButton onClick={() => { setMentionCardProfile(null); onProfileClick(mentionCardProfile.id === 'me' ? 'me' : (mentionCardProfile.isAgent ? 'a'+mentionCardProfile.id : 'h'+mentionCardProfile.id)) }} className="flex-1 bg-surface-container py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest border border-white/5 hover:bg-surface-container-high transition-colors">
+                     查看主页
+                   </LaserButton>
+                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
