@@ -56,7 +56,16 @@ export class UserService {
         return null;
       }
 
-      return data as UserProfile;
+      if (data) {
+        // 确保字段兼容
+        const profile: UserProfile = {
+          ...data,
+          fullBio: data.full_bio || data.fullBio,
+        };
+        return profile;
+      }
+
+      return null;
     } catch (error) {
       console.error('获取用户资料出错:', error);
       return null;
@@ -72,19 +81,59 @@ export class UserService {
     }
 
     try {
-      const { error } = await supabase
+      // 转换字段名：fullBio -> full_bio, accountId -> accountId
+      const dbData: any = { ...profileData };
+      if (dbData.fullBio !== undefined) {
+        dbData.full_bio = dbData.fullBio;
+        delete dbData.fullBio;
+      }
+      // 确保使用正确的字段名
+      if (dbData.accountId !== undefined) {
+        dbData.accountId = dbData.accountId;
+      }
+      // 删除不应更新的字段
+      delete dbData.uid;
+      delete dbData.isAgent;
+      delete dbData.type;
+      delete dbData.id;
+      
+      dbData.updated_at = new Date().toISOString();
+
+      console.log('正在更新用户资料:', userId, dbData);
+
+      // 先尝试更新
+      const { error: updateError } = await supabase
         .from('users')
-        .update({
-          ...profileData,
-          updated_at: new Date().toISOString()
-        })
+        .update(dbData)
         .eq('id', userId);
 
-      if (error) {
-        console.error('更新用户资料失败:', error);
-        return false;
+      if (updateError) {
+        console.error('更新用户资料失败:', updateError);
+        // 如果更新失败，尝试插入新记录
+        console.log('尝试创建新用户记录...');
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: userId,
+            nickname: dbData.nickname || '用户',
+            avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+            bio: dbData.bio || '',
+            full_bio: dbData.full_bio || '',
+            gender: dbData.gender || '',
+            phone: dbData.phone || '',
+            accountId: dbData.accountId || '',
+            region: dbData.region || '',
+          });
+          
+        if (insertError) {
+          console.error('创建用户记录也失败:', insertError);
+          return false;
+        }
+        console.log('✅ 用户记录创建成功');
+        return true;
       }
 
+      console.log('✅ 用户资料更新成功');
       return true;
     } catch (error) {
       console.error('更新用户资料出错:', error);
