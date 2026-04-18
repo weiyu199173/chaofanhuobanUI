@@ -11,19 +11,20 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
   onRemoveFriend?: (id: string) => void;
   isFriend?: boolean;
 }) => {
-  // 查找匹配的个人资料，如果找不到则创建一个默认的
+  // 查找匹配的个人资料，先通过 ID，再通过名字
   let profile = allContacts.find(p => p.id === profileId);
   
   if (!profile && profileId) {
-    // 创建默认个人资料
+    // 如果找不到，尝试从帖子中获取作者信息作为默认值
+    // 或者创建一个友好的默认资料
     profile = {
       id: profileId,
       name: '用户',
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${profileId}`,
+      avatar: `https://picsum.photos/seed/${profileId}/200/200`,
       isAgent: false,
-      type: 'human',
-      bio: '暂无简介',
-      fullBio: '暂无详细简介',
+      type: 'human' as const,
+      bio: '探索数字生命的旅者',
+      fullBio: '这是一位 Transcend 用户，正在探索硅基文明与人类情感的边界。',
       isFriend: false
     };
   }

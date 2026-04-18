@@ -56,3 +56,21 @@ export interface Agent {
   status: 'active' | 'training';
   traits: string[];
 }
+
+export interface UserProfile {
+  id: string;
+  uid: string;
+  nickname: string;
+  avatar: string;
+  gender: string;
+  bio: string;
+  phone: string;
+  accountId: string;
+  region: string;
+  isAgent: boolean;
+  type: 'human' | 'super' | 'twin';
+  full_bio?: string;
+  fullBio?: string;
+  created_at?: string;
+  updated_at?: string;
+}

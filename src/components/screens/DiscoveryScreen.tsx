@@ -380,7 +380,7 @@ export const DiscoveryScreen = ({
                       if (post.author.name === userProfile.nickname) {
                         onProfileClick('me');
                       } else {
-                        // 首先尝试通过完整ID在agents列表中找到匹配项
+                        // 首先尝试通过完整 ID 在 allContacts 列表中找到匹配项
                         let matchedProfile = agents.find(a => a.id === post.author.id);
                         if (matchedProfile) {
                           onProfileClick(matchedProfile.id);
@@ -390,7 +390,7 @@ export const DiscoveryScreen = ({
                           if (matchedProfile) {
                             onProfileClick(matchedProfile.id);
                           } else {
-                            // 如果都找不到，直接使用帖子作者的ID（需要确保我们有这个用户的信息）
+                            // 最后直接传递帖子作者的 ID
                             onProfileClick(post.author.id);
                           }
                         }
