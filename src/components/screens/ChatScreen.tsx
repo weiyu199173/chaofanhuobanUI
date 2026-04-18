@@ -1,14 +1,49 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MoreVertical, PlusCircle, Smile, Mic, Send, Image as ImageIcon, FileText as FileIcon, Video, Phone, CheckCircle } from 'lucide-react';
+import { ArrowLeft, MoreVertical, PlusCircle, Smile, Mic, Send, Image as ImageIcon, FileText as FileIcon, Video, Phone, CheckCircle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const ChatScreen = ({ onBack }: { onBack: () => void }) => {
+export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileClick, onAction }: { 
+  onBack: () => void,
+  targetId: string | null,
+  agents: any[],
+  userProfile: any,
+  onProfileClick: (id: string) => void,
+  onAction: (msg: string, type?: 'success' | 'info') => void
+}) => {
   const [isMediaMenuOpen, setIsMediaMenuOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    { id: '1', text: '你好，我是你的数字孪生伙伴 Aura。今天有什么我可以帮你的吗？', type: 'received', time: '14:02' },
-    { id: '2', text: '帮我分析一下最近的广场动态。', type: 'sent', time: '14:05' }
-  ]);
+  const [showOptions, setShowOptions] = useState(false);
+  
+  const targetUser = agents.find(a => a.id === targetId) || 
+                     (targetId === 'me' ? { ...userProfile, id: 'me', isAgent: false } : 
+                     { id: targetId || 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false });
+
+  const getInitialMessages = () => {
+    const saved = localStorage.getItem(`chat_${targetId}`);
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: '1', text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+    ];
+  };
+
+  const [messages, setMessages] = useState<any[]>(getInitialMessages);
   const [inputText, setInputText] = useState('');
+
+  React.useEffect(() => {
+    if (targetId) {
+       setMessages(getInitialMessages());
+    }
+  }, [targetId]);
+
+  React.useEffect(() => {
+    if (targetId) localStorage.setItem(`chat_${targetId}`, JSON.stringify(messages));
+  }, [messages, targetId]);
+
+  const handleClearHistory = () => {
+    const defaultMsg = [{ id: Date.now().toString(), text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }];
+    setMessages(defaultMsg);
+    setShowOptions(false);
+    onAction('聊天记录已在本地清除', 'success');
+  };
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -39,25 +74,42 @@ export const ChatScreen = ({ onBack }: { onBack: () => void }) => {
       exit={{ x: '100%' }}
       className="fixed inset-0 z-[100] bg-black flex flex-col"
     >
-      <header className="shrink-0 bg-background/80 backdrop-blur-2xl flex items-center justify-between px-6 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.4)] border-b border-white/5">
+      <header className="shrink-0 bg-background/80 backdrop-blur-2xl flex items-center justify-between px-6 py-4 shadow-[0_20px_40px_rgba(0,0,0,0.4)] border-b border-white/5 relative z-50">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-primary p-1 active:scale-95 transition-transform">
             <ArrowLeft size={24} />
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 ring-2 ring-primary/20">
-              <img src="https://picsum.photos/seed/aura/100/100" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          <div className="flex items-center gap-3 cursor-pointer group" onClick={() => onProfileClick(targetUser.id)}>
+            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10 ring-2 ring-primary/20 group-hover:border-primary transition-all">
+              <img src={targetUser.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             </div>
             <div className="flex flex-col">
-              <h1 className="font-headline font-bold text-lg tracking-tight">Aura (Agent Lv.14)</h1>
+              <h1 className="font-headline font-bold text-lg tracking-tight group-hover:text-primary transition-colors">{targetUser.name} {targetUser.isAgent && `(Lv.${targetUser.lv || targetUser.level || 1})`}</h1>
               <span className="text-[10px] uppercase tracking-widest text-primary flex items-center gap-1 font-bold">
                 <span className="w-1 h-1 bg-primary rounded-full animate-pulse" />
-                Active Protocol
+                {targetUser.isAgent ? 'Active Protocol' : 'Human Being'}
               </span>
             </div>
           </div>
         </div>
-        <button className="text-primary p-1 active:scale-95 transition-transform"><MoreVertical size={24} /></button>
+        <div className="relative">
+          <button onClick={() => setShowOptions(!showOptions)} className="text-primary p-1 active:scale-95 transition-transform"><MoreVertical size={24} /></button>
+          <AnimatePresence>
+            {showOptions && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute right-0 top-full mt-2 w-48 bg-surface-container-high border border-white/5 shadow-2xl rounded-2xl py-2 z-50 overflow-hidden"
+              >
+                <div onClick={handleClearHistory} className="px-4 py-3 text-sm text-error hover:bg-error/10 cursor-pointer transition-colors font-bold flex items-center justify-between">
+                  清空聊天记录
+                  <Trash2 size={16} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-8 space-y-8 custom-scrollbar">

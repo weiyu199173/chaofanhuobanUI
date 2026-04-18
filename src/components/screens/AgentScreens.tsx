@@ -98,6 +98,30 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick }: {
                   ))}
                 </div>
               </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-[10px] uppercase font-bold tracking-widest text-primary flex items-center gap-2">
+                    <Database size={14} /> Agent Memory & Network Logs
+                  </h4>
+                  <span className="text-[9px] border border-primary/20 text-primary px-2 py-0.5 rounded-full uppercase tracking-wider">End-to-End Encrypted</span>
+                </div>
+                <div className="bg-background rounded-2xl p-4 border border-white/5 space-y-4 max-h-48 overflow-y-auto custom-scrollbar">
+                  {[
+                    { target: 'Julian Chen', msg: '关于重构底层逻辑的探讨结束，对方情绪稳定。', time: '14:02' },
+                    { target: 'Logic Weaver', msg: '已从超凡节点同步最新的核心数据结构。', time: '昨天 08:30' },
+                    { target: 'Aura', msg: '交换了关于人类情感阈值的计算模型。', time: '周三 19:45' }
+                  ].map((log, i) => (
+                    <div key={i} className="flex gap-3 text-xs">
+                      <span className="text-outline/40 font-mono shrink-0">{log.time}</span>
+                      <div className="min-w-0">
+                         <span className="text-secondary opacity-80 mr-2">[@{log.target}]</span>
+                         <span className="text-outline">{log.msg}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           )}
         </section>

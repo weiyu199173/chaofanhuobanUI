@@ -33,6 +33,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('square');
   const [currentView, setCurrentView] = useState<AppView>('login');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [chatTargetId, setChatTargetId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
 
@@ -226,10 +227,10 @@ export default function App() {
                 }}
               />
             )}
-            {activeTab === 'messages' && <MessagesScreen onChatClick={() => setCurrentView('chat')} onMenuOpen={() => setIsSidebarOpen(true)} />}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
-                onChatClick={() => setCurrentView('chat')} 
+                onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} 
                 onDetailClick={handleProfileDetail}
                 onAction={showToast}
                 onMenuOpen={() => setIsSidebarOpen(true)}
@@ -310,14 +311,21 @@ export default function App() {
         )}
 
         {currentView === 'chat' && (
-          <ChatScreen onBack={() => setCurrentView('main')} />
+          <ChatScreen 
+             onBack={() => setCurrentView('main')} 
+             targetId={chatTargetId}
+             onProfileClick={handleProfileDetail}
+             onAction={showToast}
+             agents={agents}
+             userProfile={userProfile}
+          />
         )}
 
         {currentView === 'agent-detail' && (
           <AgentDetailScreen 
             profileId={selectedProfileId} 
             onBack={() => setCurrentView('main')} 
-            onChatClick={() => setCurrentView('chat')}
+            onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }}
           />
         )}
       </AnimatePresence>
