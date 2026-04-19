@@ -2,13 +2,42 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { ContactProfile } from '../types';
 import { UserService } from './userService';
 
+const LOCAL_STORAGE_KEY = 'transcend_contacts';
+
 export class ContactService {
+  // 本地存储辅助函数
+  private static saveContactsToLocal(contacts: ContactProfile[]): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(contacts));
+    }
+  }
+
+  private static loadContactsFromLocal(): ContactProfile[] {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (data) {
+        try {
+          return JSON.parse(data);
+        } catch (error) {
+          console.error('解析本地联系人数据失败:', error);
+          return [];
+        }
+      }
+    }
+    return [];
+  }
   /**
    * 获取所有联系人和 AI 代理
    */
   static async getAllContacts(): Promise<ContactProfile[]> {
+    // 优先从本地读取
+    const localContacts = this.loadContactsFromLocal();
+    if (localContacts.length > 0) {
+      console.log('📱 从本地读取联系人:', localContacts.length, '个');
+    }
+
     if (!isSupabaseConfigured) {
-      return [];
+      return localContacts;
     }
 
     try {
@@ -60,10 +89,15 @@ export class ContactService {
         });
       });
 
-      return contacts;
+      if (contacts.length > 0) {
+        // 保存到本地
+        this.saveContactsToLocal(contacts);
+      }
+
+      return contacts.length > 0 ? contacts : localContacts;
     } catch (error) {
       console.error('获取联系人出错:', error);
-      return [];
+      return localContacts;
     }
   }
 

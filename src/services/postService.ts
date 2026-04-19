@@ -1,6 +1,8 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Post, Author } from '../types';
 
+const LOCAL_STORAGE_KEY = 'transcend_posts';
+
 export interface DBPost {
   id: string;
   user_id: string;
@@ -14,12 +16,56 @@ export interface DBPost {
 }
 
 export class PostService {
+  // 本地存储辅助函数
+  private static savePostsToLocal(posts: Post[]): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(posts));
+    }
+  }
+
+  private static loadPostsFromLocal(): Post[] {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (data) {
+        try {
+          return JSON.parse(data);
+        } catch (error) {
+          console.error('解析本地帖子数据失败:', error);
+          return [];
+        }
+      }
+    }
+    return [];
+  }
+
+  private static addPostToLocal(post: Post): void {
+    const posts = this.loadPostsFromLocal();
+    const existingIndex = posts.findIndex(p => p.id === post.id);
+    if (existingIndex >= 0) {
+      posts[existingIndex] = post;
+    } else {
+      posts.unshift(post); // 新帖子添加到开头
+    }
+    this.savePostsToLocal(posts);
+  }
+
+  private static removePostFromLocal(postId: string): void {
+    const posts = this.loadPostsFromLocal();
+    const filteredPosts = posts.filter(p => p.id !== postId);
+    this.savePostsToLocal(filteredPosts);
+  }
   /**
    * 获取所有帖子
    */
   static async getAllPosts(): Promise<Post[]> {
+    // 优先从本地读取
+    const localPosts = this.loadPostsFromLocal();
+    if (localPosts.length > 0) {
+      console.log('📱 从本地读取帖子:', localPosts.length, '个');
+    }
+
     if (!isSupabaseConfigured) {
-      return [];
+      return localPosts;
     }
 
     try {
@@ -30,13 +76,20 @@ export class PostService {
 
       if (error) {
         console.error('获取帖子失败:', error);
-        return [];
+        return localPosts; // 数据库失败时返回本地数据
       }
 
-      return (data || []).map(this.transformDBPostToPost);
+      if (data && data.length > 0) {
+        const posts = data.map(this.transformDBPostToPost);
+        // 保存到本地
+        this.savePostsToLocal(posts);
+        return posts;
+      }
+
+      return localPosts; // 数据库没有时返回本地数据
     } catch (error) {
       console.error('获取帖子出错:', error);
-      return [];
+      return localPosts; // 出错时返回本地数据
     }
   }
 
@@ -48,33 +101,62 @@ export class PostService {
     image_url?: string;
     author_data: Author;
   }): Promise<Post | null> {
-    if (!isSupabaseConfigured) {
-      return null;
-    }
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      const { data, error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: postData.content,
-          image_url: postData.image_url,
-          author_data: postData.author_data,
-          likes_count: 0,
-          comments_count: 0
-        })
-        .select()
-        .single();
+      // 创建本地帖子对象
+      const newPost: Post = {
+        id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        author: postData.author_data,
+        content: postData.content,
+        time: '刚刚',
+        image: postData.image_url,
+        likes: 0,
+        comments: 0,
+        liked: false,
+        bookmarked: false
+      };
 
-      if (error) {
-        console.error('创建帖子失败:', error);
-        return null;
+      // 立即保存到本地
+      this.addPostToLocal(newPost);
+      console.log('💾 帖子已保存到本地:', newPost);
+
+      if (!isSupabaseConfigured) {
+        console.log('⚠️ Supabase 未配置，跳过服务器保存');
+        return newPost;
       }
 
-      return this.transformDBPostToPost(data);
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .insert({
+            user_id: user.id,
+            content: postData.content,
+            image_url: postData.image_url,
+            author_data: postData.author_data,
+            likes_count: 0,
+            comments_count: 0
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('创建帖子失败:', error);
+          // 数据库失败时，仍然返回本地创建的帖子
+          return newPost;
+        }
+
+        const dbPost = this.transformDBPostToPost(data);
+        // 更新本地存储中的帖子（使用数据库返回的真实 ID）
+        this.addPostToLocal(dbPost);
+        console.log('✅ 帖子已同步到服务器！');
+        return dbPost;
+      } catch (error) {
+        console.error('创建帖子出错:', error);
+        // 出错时，返回本地创建的帖子
+        return newPost;
+      }
     } catch (error) {
       console.error('创建帖子出错:', error);
       return null;
@@ -114,8 +196,13 @@ export class PostService {
    * 删除帖子
    */
   static async deletePost(postId: string): Promise<boolean> {
+    // 立即从本地删除
+    this.removePostFromLocal(postId);
+    console.log('💾 帖子已从本地删除:', postId);
+
     if (!isSupabaseConfigured) {
-      return false;
+      console.log('⚠️ Supabase 未配置，跳过服务器删除');
+      return true;
     }
 
     try {
@@ -126,13 +213,16 @@ export class PostService {
 
       if (error) {
         console.error('删除帖子失败:', error);
-        return false;
+        // 数据库失败时，仍然返回 true，因为本地已经删除了
+        return true;
       }
 
+      console.log('✅ 帖子已从服务器删除！');
       return true;
     } catch (error) {
       console.error('删除帖子出错:', error);
-      return false;
+      // 出错时，仍然返回 true，因为本地已经删除了
+      return true;
     }
   }
 

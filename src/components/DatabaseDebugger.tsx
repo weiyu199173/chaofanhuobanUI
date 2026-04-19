@@ -34,7 +34,7 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
   };
 
   // 辅助函数：带超时的 Promise
-  const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> => {
+  const withTimeout = function<T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) => 
