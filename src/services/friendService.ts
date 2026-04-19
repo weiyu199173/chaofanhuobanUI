@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { UserService } from './userService';
 
 export interface Friendship {
   id: string;
@@ -19,12 +20,9 @@ export class FriendService {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data: friendships, error } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          friend:friend_id(*)
-        `)
+        .select('*')
         .eq('user_id', userId)
         .eq('status', 'accepted');
 
@@ -33,7 +31,19 @@ export class FriendService {
         return [];
       }
 
-      return data || [];
+      // 手动获取好友信息
+      const friends = [];
+      for (const friendship of friendships || []) {
+        const friendProfile = await UserService.getUserProfile(friendship.friend_id);
+        if (friendProfile) {
+          friends.push({
+            ...friendship,
+            friend: friendProfile
+          });
+        }
+      }
+
+      return friends;
     } catch (error) {
       console.error('获取好友列表出错:', error);
       return [];
@@ -78,7 +88,20 @@ export class FriendService {
     }
 
     try {
-      const { error } = await supabase
+      // 首先获取好友请求信息
+      const { data: friendship, error: fetchError } = await supabase
+        .from('friendships')
+        .select('*')
+        .eq('id', friendshipId)
+        .single();
+
+      if (fetchError || !friendship) {
+        console.error('获取好友请求失败:', fetchError);
+        return false;
+      }
+
+      // 更新请求状态
+      const { error: updateError } = await supabase
         .from('friendships')
         .update({
           status: 'accepted',
@@ -86,9 +109,22 @@ export class FriendService {
         })
         .eq('id', friendshipId);
 
-      if (error) {
-        console.error('接受好友请求失败:', error);
+      if (updateError) {
+        console.error('接受好友请求失败:', updateError);
         return false;
+      }
+
+      // 创建反向关系
+      const { error: insertError } = await supabase
+        .from('friendships')
+        .insert({
+          user_id: friendship.friend_id,
+          friend_id: friendship.user_id,
+          status: 'accepted'
+        });
+
+      if (insertError) {
+        console.error('创建反向好友关系失败:', insertError);
       }
 
       return true;
@@ -133,13 +169,21 @@ export class FriendService {
     }
 
     try {
-      const { error } = await supabase
+      // 删除两个方向的关系
+      const { error: error1 } = await supabase
         .from('friendships')
         .delete()
-        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
+        .eq('user_id', userId)
+        .eq('friend_id', friendId);
 
-      if (error) {
-        console.error('删除好友失败:', error);
+      const { error: error2 } = await supabase
+        .from('friendships')
+        .delete()
+        .eq('user_id', friendId)
+        .eq('friend_id', userId);
+
+      if (error1 || error2) {
+        console.error('删除好友失败:', { error1, error2 });
         return false;
       }
 
@@ -159,10 +203,12 @@ export class FriendService {
     }
 
     try {
+      // 检查任一方向
       const { data, error } = await supabase
         .from('friendships')
         .select('*')
-        .or(`and(user_id.eq.${userId1},friend_id.eq.${userId2}),and(user_id.eq.${userId2},friend_id.eq.${userId1})`)
+        .eq('user_id', userId1)
+        .eq('friend_id', userId2)
         .eq('status', 'accepted')
         .limit(1);
 
@@ -187,12 +233,9 @@ export class FriendService {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data: friendships, error } = await supabase
         .from('friendships')
-        .select(`
-          *,
-          requester:user_id(*)
-        `)
+        .select('*')
         .eq('friend_id', userId)
         .eq('status', 'pending');
 
@@ -201,7 +244,19 @@ export class FriendService {
         return [];
       }
 
-      return data || [];
+      // 手动获取请求者信息
+      const requests = [];
+      for (const friendship of friendships || []) {
+        const requesterProfile = await UserService.getUserProfile(friendship.user_id);
+        if (requesterProfile) {
+          requests.push({
+            ...friendship,
+            requester: requesterProfile
+          });
+        }
+      }
+
+      return requests;
     } catch (error) {
       console.error('获取好友请求出错:', error);
       return [];
