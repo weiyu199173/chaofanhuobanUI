@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, Info } from 'lucide-react';
+import { CheckCircle, Info, AlertCircle, Terminal } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import './lib/supabase-test';
 
@@ -24,6 +24,16 @@ import { PostService } from './services/postService';
 import { ContactService } from './services/contactService';
 import { DatabaseDebugger } from './components/DatabaseDebugger';
 
+// 调试信息 - 直接读取环境变量
+const debugEnv = {
+  url: import.meta.env.VITE_SUPABASE_URL,
+  key: import.meta.env.VITE_SUPABASE_ANON_KEY ? `${import.meta.env.VITE_SUPABASE_ANON_KEY.substring(0, 20)}...` : null,
+  isConfigured: isSupabaseConfigured,
+  allEnvKeys: Object.keys(import.meta.env),
+};
+
+console.log('📊 Full Debug Info:', debugEnv);
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -34,6 +44,7 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDebugger, setShowDebugger] = useState(false);
+  const [showEnvDebug, setShowEnvDebug] = useState(true);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [allContacts, setAllContacts] = useState<ContactProfile[]>(mockProfiles);
@@ -305,6 +316,68 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
+      {/* 环境变量调试面板 */}
+      {showEnvDebug && (
+        <div className="fixed top-4 left-4 z-[200 bg-surface border border-primary/30 rounded-xl shadow-xl p-4 max-w-md">
+          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Terminal size={16} className="text-primary" />
+            <span className="text-xs font-bold text-primary uppercase tracking-wider">环境变量调试</span>
+          </div>
+            <button 
+              onClick={() => setShowEnvDebug(false)}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className={`p-2 rounded-lg border ${debugEnv.url ? 'bg-green-950/30 border-green-500/30' : 'bg-red-950/30 border-red-500/30'}>
+              <div className="flex items-center gap-2">
+                <span className={debugEnv.url ? 'text-green-400' : 'text-red-400'}>
+                  {debugEnv.url ? '✓' : '✗'}
+                </span>
+                <span className="font-medium">VITE_SUPABASE_URL</span>
+              </div>
+              <div className="mt-1 text-gray-400 font-mono">
+                {debugEnv.url || '未配置'}
+              </div>
+            </div>
+            
+            <div className={`p-2 rounded-lg border ${debugEnv.key ? 'bg-green-950/30 border-green-500/30' : 'bg-red-950/30 border-red-500/30'}>
+              <div className="flex items-center gap-2">
+                <span className={debugEnv.key ? 'text-green-400' : 'text-red-400'}>
+                  {debugEnv.key ? '✓' : '✗'}
+                </span>
+                <span className="font-medium">VITE_SUPABASE_ANON_KEY</span>
+              </div>
+              <div className="mt-1 text-gray-400 font-mono">
+                {debugEnv.key || '未配置'}
+              </div>
+            </div>
+            
+            <div className={`p-2 rounded-lg border ${debugEnv.isConfigured ? 'bg-green-950/30 border-green-500/30' : 'bg-red-950/30 border-red-500/30'}>
+              <div className="flex items-center gap-2">
+                <span className={debugEnv.isConfigured ? 'text-green-400' : 'text-red-400'}>
+                  {debugEnv.isConfigured ? '✓' : '✗'}
+                </span>
+                <span className="font-medium">isSupabaseConfigured</span>
+              </div>
+              <div className="mt-1 text-gray-400 font-mono">
+                {String(debugEnv.isConfigured)}
+              </div>
+            </div>
+
+            <div className="p-2 rounded-lg border border-gray-700 bg-gray-900/50">
+              <span className="font-medium text-gray-400">可用的环境变量:</span>
+              <div className="mt-1 text-gray-500 font-mono text-[10px]">
+                {debugEnv.allEnvKeys.join(', ')}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!isSupabaseConfigured && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-primary/10 border border-primary/20 backdrop-blur-md rounded-full flex items-center gap-2 pointer-events-none">
           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
