@@ -258,7 +258,16 @@ export class UserService {
 
       if (error) {
         console.error('搜索用户失败:', error);
-        return [];
+        // 如果 or 语法不支持，使用简单查询回退
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('users')
+          .select('*')
+          .ilike('nickname', `%${query}%`);
+        
+        if (fallbackError) {
+          return [];
+        }
+        return fallbackData as UserProfile[];
       }
 
       return data as UserProfile[];
