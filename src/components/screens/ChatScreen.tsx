@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, MoreVertical, PlusCircle, Smile, Mic, Send, Image as ImageIcon, FileText as FileIcon, Video, Phone, CheckCircle, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { MessageService } from '../../services/messageService';
 
 export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileClick, onAction }: { 
   onBack: () => void,
@@ -27,12 +28,37 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
 
   const [messages, setMessages] = useState<any[]>(getInitialMessages);
   const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    if (targetId) {
-       setMessages(getInitialMessages());
+  // 加载聊天记录
+  useEffect(() => {
+    if (targetId && userProfile.id) {
+      loadMessages();
     }
-  }, [targetId]);
+  }, [targetId, userProfile.id]);
+
+  const loadMessages = async () => {
+    if (!targetId || !userProfile.id) return;
+    
+    setLoading(true);
+    try {
+      const chatMessages = await MessageService.getChatMessages(userProfile.id, targetId);
+      if (chatMessages.length > 0) {
+        const formattedMessages = chatMessages.map(msg => ({
+          id: msg.id,
+          text: msg.content,
+          type: msg.sender_id === userProfile.id ? 'sent' : 'received',
+          time: new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: msg.status
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('加载聊天记录失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     if (targetId) localStorage.setItem(`chat_${targetId}`, JSON.stringify(messages));
@@ -45,16 +71,36 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
     onAction('聊天记录已在本地清除', 'success');
   };
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
+  const handleSend = async () => {
+    if (!inputText.trim() || !targetId || !userProfile.id) return;
+    
     const newMessage = {
       id: Date.now().toString(),
       text: inputText,
       type: 'sent',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'sent'
     };
+    
+    // 先更新本地状态，实现即时反馈
     setMessages([...messages, newMessage]);
     setInputText('');
+    
+    // 发送消息到后端
+    try {
+      const sentMessage = await MessageService.sendMessage(userProfile.id, targetId, inputText);
+      if (sentMessage) {
+        // 更新消息状态为已发送
+        setMessages(prev => prev.map(msg => 
+          msg.id === newMessage.id 
+            ? { ...msg, id: sentMessage.id, status: 'delivered' }
+            : msg
+        ));
+      }
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      onAction('消息发送失败，请重试', 'info');
+    }
     
     // Auto reply for demo
     setTimeout(() => {
