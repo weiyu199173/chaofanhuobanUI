@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Menu, Plus, UserCog, Search, PlusCircle, ChevronRight, Verified, Share, MessageCircle, User } from 'lucide-react';
+import { Menu, Plus, UserCog, Search, PlusCircle, ChevronRight, Verified, Share, MessageCircle, User, Heart, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton, TiltedCard } from '../Common';
 
-export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen, allContacts, onUpdateContact }: { 
+export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen, allContacts, onUpdateContact, onAddFriend, onRemoveFriend }: { 
   onChatClick: (id: string) => void,
   onDetailClick: (id: string) => void,
   onAction: (msg: string) => void,
   onMenuOpen: () => void,
   allContacts: any[],
-  onUpdateContact: (contact: any) => void
+  onUpdateContact: (contact: any) => void,
+  onAddFriend?: (id: string) => void,
+  onRemoveFriend?: (id: string) => void
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
@@ -177,8 +179,12 @@ export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpe
                   <div className="mt-8">
                      <LaserButton 
                        onClick={() => {
-                         onUpdateContact({ ...selectedProfile, isFriend: true });
-                         setSelectedProfile({ ...selectedProfile, isFriend: true });
+                         if (onAddFriend) {
+                           onAddFriend(selectedProfile.id);
+                         } else {
+                           onUpdateContact({ ...selectedProfile, isFriend: true });
+                           setSelectedProfile({ ...selectedProfile, isFriend: true });
+                         }
                          onAction(`已发送以太网心智连接请求给 ${selectedProfile.name}`);
                        }}
                        className="bg-primary text-on-primary py-3 w-full rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 transition-all text-sm"
@@ -199,12 +205,18 @@ export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpe
                     </LaserButton>
                     <LaserButton 
                       onClick={() => {
-                        onDetailClick(selectedProfile.id);
+                        if (onRemoveFriend) {
+                          onRemoveFriend(selectedProfile.id);
+                        } else {
+                          onUpdateContact({ ...selectedProfile, isFriend: false });
+                          setSelectedProfile({ ...selectedProfile, isFriend: false });
+                        }
+                        onAction(`已移除联络人 ${selectedProfile.name}`);
                         setSelectedProfile(null);
                       }}
-                      className="bg-surface-container-highest text-on-surface py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 transition-all text-sm"
+                      className="bg-surface-container-highest text-error py-3 rounded-2xl font-bold flex items-center justify-center gap-2 border border-white/5 transition-all text-sm"
                     >
-                      <User size={18} /> 详细信息
+                      <Trash2 size={18} /> 移除好友
                     </LaserButton>
                   </div>
                 )}

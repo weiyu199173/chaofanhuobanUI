@@ -374,6 +374,8 @@ export default function App() {
                 onAction={showToast}
                 onMenuOpen={() => setIsSidebarOpen(true)}
                 onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
+                onAddFriend={handleAddFriend}
+                onRemoveFriend={handleRemoveFriend}
               />
             )}
             {activeTab === 'me' && (
