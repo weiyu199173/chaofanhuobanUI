@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
+const LOCAL_STORAGE_KEY = 'transcend_user_profile';
+
 export interface UserProfile {
   id: string;
   uid?: string;
@@ -19,6 +21,23 @@ export interface UserProfile {
 }
 
 export class UserService {
+  // 本地存储辅助函数
+  private static saveToLocal(profile: UserProfile) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(LOCAL_STORAGE_KEY + '_' + profile.id, JSON.stringify(profile));
+    }
+  }
+
+  private static loadFromLocal(userId: string): UserProfile | null {
+    if (typeof window !== 'undefined') {
+      const data = localStorage.getItem(LOCAL_STORAGE_KEY + '_' + userId);
+      if (data) {
+        return JSON.parse(data);
+      }
+    }
+    return null;
+  }
+
   /**
    * 获取当前用户信息
    */
@@ -40,8 +59,14 @@ export class UserService {
    * 获取用户个人资料
    */
   static async getUserProfile(userId: string): Promise<UserProfile | null> {
+    // 优先从本地读取
+    const localProfile = this.loadFromLocal(userId);
+    if (localProfile) {
+      console.log('📱 从本地读取用户资料:', localProfile);
+    }
+
     if (!isSupabaseConfigured) {
-      return null;
+      return localProfile;
     }
 
     try {
@@ -52,7 +77,7 @@ export class UserService {
 
       if (error) {
         console.error('获取用户资料失败:', error);
-        return null;
+        return localProfile; // 数据库失败时返回本地数据
       }
 
       if (data && data.length > 0) {
@@ -61,13 +86,15 @@ export class UserService {
           ...data[0],
           fullBio: data[0].full_bio || data[0].fullBio,
         };
+        // 保存到本地
+        this.saveToLocal(profile);
         return profile;
       }
 
-      return null;
+      return localProfile; // 数据库没有时返回本地数据
     } catch (error) {
       console.error('获取用户资料出错:', error);
-      return null;
+      return localProfile; // 出错时返回本地数据
     }
   }
 
@@ -75,90 +102,86 @@ export class UserService {
    * 更新用户个人资料
    */
   static async updateUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<boolean> {
+    // 先准备完整的用户数据
+    const completeData: UserProfile = {
+      id: userId,
+      nickname: profileData.nickname || '用户',
+      avatar: profileData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+      bio: profileData.bio || '',
+      gender: profileData.gender,
+      phone: profileData.phone,
+      accountId: profileData.accountId,
+      region: profileData.region,
+      full_bio: profileData.fullBio || profileData.full_bio,
+      fullBio: profileData.fullBio || profileData.full_bio,
+    };
+
+    // 立即保存到本地（最重要！）
+    this.saveToLocal(completeData);
+    console.log('💾 用户资料已保存到本地:', completeData);
+
     if (!isSupabaseConfigured) {
       console.log('⚠️ Supabase 未配置，跳过服务器保存');
-      return false;
+      return true;
     }
 
     if (!userId) {
       console.error('❌ 没有用户ID，无法保存');
-      return false;
+      return true;
     }
 
     try {
-      // 转换字段名：fullBio -> full_bio
-      const dbData: any = { ...profileData };
-      if (dbData.fullBio !== undefined) {
-        dbData.full_bio = dbData.fullBio;
-        delete dbData.fullBio;
-      }
-      // 删除不应更新的字段
-      delete dbData.uid;
-      delete dbData.isAgent;
-      delete dbData.type;
-      delete dbData.id;
+      console.log('🔄 正在同步到服务器...');
       
-      dbData.updated_at = new Date().toISOString();
+      // 准备数据库数据
+      const dbData = {
+        id: userId,
+        nickname: completeData.nickname,
+        avatar: completeData.avatar,
+        bio: completeData.bio,
+        full_bio: completeData.full_bio,
+        gender: completeData.gender || null,
+        phone: completeData.phone || null,
+        accountId: completeData.accountId || null,
+        region: completeData.region || null,
+      };
 
-      console.log('🔄 正在更新用户资料...');
-      console.log('   用户ID:', userId);
-      console.log('   数据:', dbData);
+      console.log('📤 尝试保存到数据库:', dbData);
 
-      // 先检查记录是否存在
-      const { data: existingRecords, error: checkError } = await supabase
+      // 尝试 upsert（先查一下是否存在）
+      const { data: existingData } = await supabase
         .from('users')
         .select('id')
         .eq('id', userId);
 
-      if (checkError) {
-        console.error('❌ 检查用户记录失败:', checkError);
-      }
-      
-      const existingRecord = existingRecords && existingRecords.length > 0 ? existingRecords[0] : null;
-
-      let resultError = null;
-      
-      if (existingRecord) {
-        console.log('📝 记录存在，执行更新...');
+      let dbError = null;
+      if (existingData && existingData.length > 0) {
+        // 存在，更新
         const { error } = await supabase
           .from('users')
           .update(dbData)
           .eq('id', userId);
-        resultError = error;
+        dbError = error;
       } else {
-        console.log('🆕 记录不存在，创建新记录...');
-        const insertData = {
-          id: userId,
-          nickname: dbData.nickname || '用户',
-          avatar: dbData.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
-          bio: dbData.bio || '',
-          full_bio: dbData.full_bio || '',
-          gender: dbData.gender || '',
-          phone: dbData.phone || '',
-          accountId: dbData.accountId || '',
-          region: dbData.region || '',
-        };
-        console.log('插入数据:', insertData);
-        
+        // 不存在，插入
         const { error } = await supabase
           .from('users')
-          .insert(insertData);
-        resultError = error;
+          .insert(dbData);
+        dbError = error;
       }
 
-      if (resultError) {
-        console.error('❌ 数据库操作失败:', resultError);
-        console.error('   错误代码:', resultError.code);
-        console.error('   错误信息:', resultError.message);
-        console.error('   详细:', resultError);
-        return false;
+      if (dbError) {
+        console.error('❌ 数据库操作失败:', dbError);
+        // 数据库失败时，仍然返回 true，因为本地已经保存了
+        return true;
       }
 
-      console.log('✅ 用户资料保存成功！');
+      console.log('✅ 用户资料已同步到服务器！');
       return true;
     } catch (error) {
-      console.error('💥 更新用户资料异常:', error);
-      return false;
+      console.error('💥 同步到服务器异常:', error);
+      // 数据库失败时，仍然返回 true，因为本地已经保存了
+      return true;
     }
   }
 

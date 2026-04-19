@@ -33,6 +33,16 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
     ));
   };
 
+  // 辅助函数：带超时的 Promise
+  const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, errorMsg: string): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) => 
+        setTimeout(() => reject(new Error(errorMsg)), timeoutMs)
+      )
+    ]);
+  };
+
   const runAllTests = async () => {
     addLog('🧪 开始完整数据库诊断...');
     
@@ -49,16 +59,23 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
     updateStep('config', 'success', '✅ Supabase 已配置');
     addLog('✅ Supabase 配置检查通过');
 
-    // 2. 检查认证状态
+    // 2. 检查认证状态（带超时 5秒）
     updateStep('auth', 'running');
+    let userId: string | null = null;
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) throw error;
+      const result = await withTimeout(
+        supabase.auth.getUser(),
+        5000,
+        '认证超时'
+      );
       
-      if (user) {
-        setCurrentUserId(user.id);
-        updateStep('auth', 'success', `✅ 已登录: ${user.email}`);
-        addLog(`✅ 用户已登录: ${user.id}`);
+      if (result.error) throw result.error;
+      
+      if (result.data.user) {
+        userId = result.data.user.id;
+        setCurrentUserId(userId);
+        updateStep('auth', 'success', `✅ 已登录: ${result.data.user.email}`);
+        addLog(`✅ 用户已登录: ${userId}`);
       } else {
         updateStep('auth', 'error', '❌ 未登录');
         addLog('❌ 用户未登录');
@@ -70,12 +87,14 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    // 3. 检查 users 表
+    // 3. 检查 users 表（带超时）
     updateStep('users-table', 'running');
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id');
+      const { data, error } = await withTimeout(
+        supabase.from('users').select('id'),
+        5000,
+        '查询 users 表超时'
+      );
       
       if (error) throw error;
       
@@ -89,9 +108,9 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
 
     // 4. 检查用户资料
     updateStep('user-profile', 'running');
-    if (currentUserId) {
+    if (userId) {
       try {
-        const profile = await UserService.getUserProfile(currentUserId);
+        const profile = await UserService.getUserProfile(userId);
         if (profile) {
           updateStep('user-profile', 'success', '✅ 用户资料存在', profile);
           addLog(`✅ 用户资料已找到: ${profile.nickname}`);
@@ -107,25 +126,34 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
 
     // 5. 测试插入/更新
     updateStep('insert-test', 'running');
-    if (currentUserId) {
+    if (userId) {
       try {
-        const testData = {
-          nickname: '测试用户_' + Date.now(),
-          bio: '这是一条测试数据',
-          fullBio: '完整的测试个人简介',
-        };
+        const testNickname = '测试用户_' + Date.now();
         
-        addLog(`📝 正在保存测试数据: ${JSON.stringify(testData)}`);
-        const success = await UserService.updateUserProfile(currentUserId, testData);
+        addLog(`📝 正在保存测试数据，新昵称: ${testNickname}`);
+        addLog('📤 正在调用 Supabase update API...');
         
-        if (success) {
+        // 直接用 update 测试，因为记录已经存在了
+        const { error } = await supabase
+          .from('users')
+          .update({ nickname: testNickname })
+          .eq('id', userId);
+        
+        if (error) {
+          console.error('❌ Supabase 错误:', error);
+          const errorMsg = `❌ ${error.code}: ${error.message}`;
+          updateStep('insert-test', 'error', errorMsg, error);
+          addLog(errorMsg);
+          addLog(`📋 完整错误: ${JSON.stringify(error)}`);
+          updateStep('update-test', 'error', '跳过');
+        } else {
           updateStep('insert-test', 'success', '✅ 数据保存成功！');
           addLog('✅ 数据库写入测试成功！');
           
           // 6. 验证更新
           updateStep('update-test', 'running');
-          const verifyProfile = await UserService.getUserProfile(currentUserId);
-          if (verifyProfile && verifyProfile.nickname === testData.nickname) {
+          const verifyProfile = await UserService.getUserProfile(userId);
+          if (verifyProfile && verifyProfile.nickname === testNickname) {
             updateStep('update-test', 'success', '✅ 数据读取验证通过！');
             addLog('✅ 数据读取验证通过！');
             addLog(`👤 读取到用户: ${verifyProfile.nickname}`);
@@ -134,10 +162,6 @@ export function DatabaseDebugger({ onClose }: { onClose: () => void }) {
             addLog('❌ 数据验证失败');
             addLog(`📊 verifyProfile: ${JSON.stringify(verifyProfile)}`);
           }
-        } else {
-          updateStep('insert-test', 'error', '❌ 数据保存失败 - 请检查浏览器控制台的详细错误');
-          updateStep('update-test', 'error', '跳过');
-          addLog('❌ 数据库写入失败');
         }
       } catch (error: any) {
         updateStep('insert-test', 'error', `❌ ${error.message}`, error);

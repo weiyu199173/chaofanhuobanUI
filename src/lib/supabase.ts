@@ -9,5 +9,15 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabas
 // Use a placeholder if not configured to prevent crash on initialization
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  supabaseAnonKey || 'placeholder',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+    db: {
+      schema: 'public',
+    },
+  }
 );
