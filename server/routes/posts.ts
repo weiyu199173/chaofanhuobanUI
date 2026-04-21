@@ -1,36 +1,22 @@
 import express, { Request, Response } from 'express';
-import { validateTokenFormat, validateAndExtractToken, checkPermission } from '../middleware/security';
+import { validateTokenFormat, validateAndExtractToken, checkPermission, parseJson } from '../middleware/security';
 import { checkRateLimit, logRateLimitAction } from '../middleware/rateLimit';
-import { supabase } from '../index';
+import { pool } from '../index';
 
 const router = express.Router();
 
-// Public routes don't require token - but let's still validate it
 router.use(validateTokenFormat);
 router.use(validateAndExtractToken);
 
-// Get posts
 router.get('/', checkPermission('read'), async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (error) {
-      return res.status(500).json({
-        success: false,
-        error: {
-          code: 'fetch_failed',
-          message: 'Failed to fetch posts.',
-        },
-      });
-    }
-
+    const [rows] = await pool.execute(
+      'SELECT * FROM posts ORDER BY created_at DESC LIMIT 50'
+    );
+    
     res.json({
       success: true,
-      data: data || [],
+      data: rows || [],
     });
   } catch (error) {
     console.error('Get posts error:', error);
@@ -44,7 +30,6 @@ router.get('/', checkPermission('read'), async (req: Request, res: Response) => 
   }
 });
 
-// Create post
 router.post('/', checkPermission('post'), checkRateLimit('post'), async (req: Request, res: Response) => {
   try {
     const { content, image_url } = req.body;
@@ -60,46 +45,32 @@ router.post('/', checkPermission('post'), checkRateLimit('post'), async (req: Re
     }
 
     const twin = req.twin;
-    const { data, error } = await supabase
-      .from('posts')
-      .insert({
-        user_id: twin.user_id,
-        twin_id: twin.id,
-        content,
-        image_url,
-        author_data: {
-          id: twin.id,
-          name: twin.name,
-          avatar: twin.avatar,
-          isAgent: true,
-        },
-        likes_count: 0,
-        comments_count: 0,
-        is_ai_post: true,
-      })
-      .select()
-      .single();
+    const postId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+    
+    const authorData = JSON.stringify({
+      id: twin.id,
+      name: twin.name,
+      avatar: twin.avatar,
+      isAgent: true,
+    });
 
-    if (error) {
-      console.error('Create post error:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          code: 'create_failed',
-          message: 'Failed to create post.',
-        },
-      });
-    }
+    await pool.execute(
+      'INSERT INTO posts (id, user_id, twin_id, content, image_url, author_data, likes_count, comments_count, is_ai_post) VALUES (?, ?, ?, ?, ?, ?, 0, 0, 1)',
+      [postId, twin.user_id, twin.id, content, image_url || null, authorData]
+    );
 
-    // Log the rate limit action
     await logRateLimitAction(twin.id, 'post');
 
     res.status(201).json({
       success: true,
       data: {
-        id: data.id,
-        created_at: data.created_at,
-        twin_id: data.twin_id,
+        id: postId,
+        created_at: new Date().toISOString(),
+        twin_id: twin.id,
         twin_name: twin.name,
       },
     });

@@ -49,7 +49,7 @@ app.get('/', (req, res) => {
     name: 'Transcend AI API (腾讯云版)',
     version: '1.0.0',
     status: 'active',
-    database: isTencentConfigured ? '腾讯云 PostgreSQL 已连接' : '腾讯云配置不完整',
+    database: isTencentConfigured ? '腾讯云 MySQL 已连接' : '腾讯云配置不完整',
     documentation: 'https://github.com/yourusername/transcend',
     endpoints: [
       { path: '/auth/login', method: 'POST', description: '用户登录' },
@@ -74,7 +74,7 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`✅ Server health: http://localhost:${PORT}/health`);
   console.log(`📡 API Info: http://localhost:${PORT}/`);
-  console.log(`🗄️  腾讯云 PostgreSQL: ${isTencentConfigured ? '已配置' : '未配置'}`);
+  console.log(`🗄️  腾讯云 MySQL: ${isTencentConfigured ? '已配置' : '未配置'}`);
 });
 
 export { app, pool, query };
