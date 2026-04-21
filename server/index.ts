@@ -1,54 +1,76 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import { Pool } from 'pg';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || '',
-  process.env.VITE_SUPABASE_ANON_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+// 腾讯云 PostgreSQL 连接池
+const pool = new Pool({
+  host: process.env.TENCENT_DB_HOST || 'localhost',
+  port: parseInt(process.env.TENCENT_DB_PORT || '5432'),
+  database: process.env.TENCENT_DB_NAME || 'transcend',
+  user: process.env.TENCENT_DB_USER || 'postgres',
+  password: process.env.TENCENT_DB_PASSWORD || '',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+
+// 数据库查询函数
+export const query = async (text: string, params?: any[]) => {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(text, params);
+    return result;
+  } finally {
+    client.release();
   }
+};
+
+// 检查腾讯云配置
+const isTencentConfigured = !!(
+  process.env.TENCENT_DB_HOST && 
+  process.env.TENCENT_DB_USER && 
+  process.env.TENCENT_DB_PASSWORD && 
+  process.env.TENCENT_DB_PASSWORD !== ''
 );
 
-// Import routes
+// 导入路由
 import authRoutes from './routes/auth';
 import postsRoutes from './routes/posts';
 
-// Middleware
+// 中间件
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// 根路由
 app.get('/', (req, res) => {
   res.json({
-    name: 'Transcend AI API',
+    name: 'Transcend AI API (腾讯云版)',
     version: '1.0.0',
     status: 'active',
+    database: isTencentConfigured ? '腾讯云 PostgreSQL 已连接' : '腾讯云配置不完整',
     documentation: 'https://github.com/yourusername/transcend',
     endpoints: [
-      { path: '/auth/validate', method: 'GET', description: 'Validate token and get twin info' },
-      { path: '/posts', method: 'GET', description: 'Get posts (read permission required)' },
-      { path: '/posts', method: 'POST', description: 'Create post (post permission required, rate limited)' },
+      { path: '/auth/login', method: 'POST', description: '用户登录' },
+      { path: '/auth/register', method: 'POST', description: '用户注册' },
+      { path: '/auth/validate', method: 'GET', description: '验证Token和获取数字孪生信息' },
+      { path: '/posts', method: 'GET', description: '获取帖子' },
+      { path: '/posts', method: 'POST', description: '创建帖子' },
     ],
   });
 });
 
-// Health check
+// 健康检查
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), database: isTencentConfigured ? 'connected' : 'not_configured' });
 });
 
-// API routes
+// API 路由
 app.use('/auth', authRoutes);
 app.use('/posts', postsRoutes);
 
@@ -56,6 +78,7 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`✅ Server health: http://localhost:${PORT}/health`);
   console.log(`📡 API Info: http://localhost:${PORT}/`);
+  console.log(`🗄️  腾讯云 PostgreSQL: ${isTencentConfigured ? '已配置' : '未配置'}`);
 });
 
-export { app, supabase };
+export { app, pool, query };
