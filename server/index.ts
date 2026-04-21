@@ -1,34 +1,30 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Pool } from 'pg';
+import mysql from 'mysql2/promise';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// 腾讯云 PostgreSQL 连接池
-const pool = new Pool({
+// 腾讯云 MySQL 连接池
+const pool = mysql.createPool({
   host: process.env.TENCENT_DB_HOST || 'localhost',
-  port: parseInt(process.env.TENCENT_DB_PORT || '5432'),
+  port: parseInt(process.env.TENCENT_DB_PORT || '3306'),
   database: process.env.TENCENT_DB_NAME || 'transcend',
-  user: process.env.TENCENT_DB_USER || 'postgres',
+  user: process.env.TENCENT_DB_USER || 'root',
   password: process.env.TENCENT_DB_PASSWORD || '',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  waitForConnections: true,
+  connectionLimit: 20,
+  queueLimit: 0,
+  charset: 'utf8mb4',
 });
 
 // 数据库查询函数
 export const query = async (text: string, params?: any[]) => {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(text, params);
-    return result;
-  } finally {
-    client.release();
-  }
+  const [rows] = await pool.execute(text, params);
+  return { rows };
 };
 
 // 检查腾讯云配置

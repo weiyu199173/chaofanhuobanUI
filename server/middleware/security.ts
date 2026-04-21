@@ -24,6 +24,19 @@ export function validateTokenFormat(req: Request, res: Response, next: NextFunct
   next();
 }
 
+// 解析 MySQL 的 JSON 字段
+const parseJson = (data: any) => {
+  if (!data) return { read: true, post: false, chat: false };
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return { read: true, post: false, chat: false };
+    }
+  }
+  return data;
+};
+
 export async function validateAndExtractToken(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.token;
@@ -33,7 +46,7 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
       const result = await query(
-        'SELECT t.*, dt.* FROM agent_tokens t JOIN digital_twins dt ON t.twin_id = dt.id WHERE t.token_hash = $1 AND t.is_active = true',
+        'SELECT t.*, dt.* FROM agent_tokens t JOIN digital_twins dt ON t.twin_id = dt.id WHERE t.token_hash = ? AND t.is_active = 1',
         [tokenHash]
       );
 
@@ -55,7 +68,7 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
       }
 
       // 处理权限
-      const permissions = data.permissions || { read: true, post: false, chat: false };
+      const permissions = parseJson(data.permissions);
       
       req.tokenData = {
         ...data,
@@ -66,7 +79,7 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
       req.twin = data;
 
       // 更新最后使用时间
-      await query('UPDATE agent_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [data.id]);
+      await query('UPDATE agent_tokens SET last_used_at = NOW() WHERE id = ?', [data.id]);
       
     } else {
       // 普通 JWT 用户认证
