@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut, Wrench } from 'lucide-react';
+import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut, Wrench, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
 import { AppTab, AppView } from '../../types';
@@ -105,6 +105,7 @@ export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabCha
       onTabChange('square');
       onNavigate('main');
     }},
+    { icon: Bot, label: '外部AI接入', count: 'New', view: 'external-ai' },
     { icon: Compass, label: '技能仓库', count: 'New', view: 'skill-warehouse' },
     { icon: Star, label: 'MCP 市场', count: 'VIP', view: 'mcp-market' },
     { icon: Settings, label: '系统设置', view: 'app-settings' },

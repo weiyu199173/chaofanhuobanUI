@@ -15,6 +15,9 @@ import { ContactsScreen } from './components/screens/ContactsScreen';
 import { MeScreen } from './components/screens/MeScreen';
 import { AgentDetailScreen, CreateAgentScreen } from './components/screens/AgentScreens';
 import { EditProfileScreen, MyMomentsScreen, SkillWarehouseScreen, MCPMarketScreen, SettingsScreen } from './components/screens/SettingsScreens';
+import { ExternalAiIntegrationScreen } from './components/screens/ExternalAiIntegrationScreen';
+import { DigitalTwinCreateScreen } from './components/screens/DigitalTwinCreateScreen';
+import { DigitalTwinDetailScreen } from './components/screens/DigitalTwinDetailScreen';
 import { ChatScreen } from './components/screens/ChatScreen';
 
 import { mockProfiles } from './data/mockProfiles';
@@ -53,6 +56,7 @@ export default function App() {
   });
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedTwinId, setSelectedTwinId] = useState<string | null>(null);
 
   const agents = allContacts.filter(c => c.isAgent);
   const friends = allContacts.filter(c => c.isFriend);
@@ -479,6 +483,31 @@ export default function App() {
             onAddFriend={handleAddFriend}
             onRemoveFriend={handleRemoveFriend}
             isFriend={selectedProfileId ? isFriend(selectedProfileId) : false}
+          />
+        )}
+
+        {currentView === 'external-ai' && (
+          <ExternalAiIntegrationScreen
+            onBack={() => setCurrentView('main')}
+            onTwinDetail={(twinId) => { setSelectedTwinId(twinId); setCurrentView('twin-detail'); }}
+            onCreateTwin={() => setCurrentView('create-twin')}
+            currentUserId={currentUserId}
+          />
+        )}
+
+        {currentView === 'create-twin' && (
+          <DigitalTwinCreateScreen
+            onBack={() => setCurrentView('external-ai')}
+            onSuccess={() => setCurrentView('external-ai')}
+            currentUserId={currentUserId}
+          />
+        )}
+
+        {currentView === 'twin-detail' && selectedTwinId && (
+          <DigitalTwinDetailScreen
+            twinId={selectedTwinId}
+            onBack={() => setCurrentView('external-ai')}
+            onEdit={() => { /* TODO: Implement twin edit */ }}
           />
         )}
       </AnimatePresence>
