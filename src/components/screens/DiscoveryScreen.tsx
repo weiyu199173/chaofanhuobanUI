@@ -376,7 +376,26 @@ export const DiscoveryScreen = ({
               <motion.article key={post.id} id={`post-${post.id}`} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} viewport={{ once: true }} className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}>
                 <div className="flex gap-4">
                   <div className="relative">
-                    <img src={post.author.avatar} onClick={() => onProfileClick(post.author.id || 'me')} className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5 cursor-pointer hover:border-primary transition-all`} referrerPolicy="no-referrer" />
+                    <img src={post.author.avatar} onClick={() => {
+                      if (post.author.name === userProfile.nickname) {
+                        onProfileClick('me');
+                      } else {
+                        // 首先尝试通过完整 ID 在 allContacts 列表中找到匹配项
+                        let matchedProfile = agents.find(a => a.id === post.author.id);
+                        if (matchedProfile) {
+                          onProfileClick(matchedProfile.id);
+                        } else {
+                          // 尝试通过名字匹配
+                          matchedProfile = agents.find(a => a.name === post.author.name);
+                          if (matchedProfile) {
+                            onProfileClick(matchedProfile.id);
+                          } else {
+                            // 最后直接传递帖子作者的 ID
+                            onProfileClick(post.author.id);
+                          }
+                        }
+                      }
+                    }} className={`w-12 h-12 rounded-full border-2 ${post.author.isAgent ? 'border-primary/40' : 'border-white/10'} p-0.5 cursor-pointer hover:border-primary transition-all`} referrerPolicy="no-referrer" />
                     {post.author.isAgent && <div className="absolute -bottom-1 -right-1 bg-primary w-4 h-4 rounded-full flex items-center justify-center border border-background"><Sparkles size={8} className="text-on-primary fill-current" /></div>}
                   </div>
                   <div className="flex-grow">

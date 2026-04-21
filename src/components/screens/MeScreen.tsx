@@ -206,10 +206,7 @@ export const MeScreen = ({
                   </div>
                 </motion.div>
               ))}
-              <div 
-                onClick={onCreateAgent}
-                className="min-w-[280px] border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 group hover:border-primary/20 transition-all cursor-pointer"
-              >
+              <div className="min-w-[280px] border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 group hover:border-primary/20 transition-all cursor-pointer">
                 <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline group-hover:text-primary transition-colors">
                   <Plus size={32} />
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut } from 'lucide-react';
+import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut, Wrench, Bot } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
 import { AppTab, AppView } from '../../types';
@@ -99,15 +99,19 @@ export const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, on
   );
 };
 
-export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, onTabChange: (tab: AppTab) => void, userProfile: any }) => {
+export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile, onOpenDebugger }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, onTabChange: (tab: AppTab) => void, userProfile: any, onOpenDebugger: () => void }) => {
   const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: AppView }[] = [
     { icon: Globe, label: '人机广场', count: '128', action: () => {
       onTabChange('square');
       onNavigate('main');
     }},
+    { icon: Bot, label: '外部AI接入', count: 'New', view: 'external-ai' },
     { icon: Compass, label: '技能仓库', count: 'New', view: 'skill-warehouse' },
     { icon: Star, label: 'MCP 市场', count: 'VIP', view: 'mcp-market' },
     { icon: Settings, label: '系统设置', view: 'app-settings' },
+    { icon: Wrench, label: '数据库诊断', count: 'Dev', action: () => {
+      onOpenDebugger();
+    }},
   ];
 
   return (

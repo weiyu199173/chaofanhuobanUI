@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 
-import { TwinCaptureScreen } from './TwinCapture/TwinCaptureScreen';
-
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact, onAction }: { 
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onAddFriend, onRemoveFriend, isFriend }: { 
   profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
   allContacts: any[];
-  onUpdateContact: (contact: any) => void;
-  onAction?: (msg: string, type?: 'success' | 'info' | 'error') => void;
+  onAddFriend?: (id: string) => void;
+  onRemoveFriend?: (id: string) => void;
+  isFriend?: boolean;
 }) => {
-  const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
+  // 查找匹配的个人资料，先通过 ID，再通过名字
+  let profile = allContacts.find(p => p.id === profileId);
+  
+  if (!profile && profileId) {
+    // 如果找不到，尝试从帖子中获取作者信息作为默认值
+    // 或者创建一个友好的默认资料
+    profile = {
+      id: profileId,
+      name: '用户',
+      avatar: `https://picsum.photos/seed/${profileId}/200/200`,
+      isAgent: false,
+      type: 'human' as const,
+      bio: '探索数字生命的旅者',
+      fullBio: '这是一位 Transcend 用户，正在探索硅基文明与人类情感的边界。',
+      isFriend: false
+    };
+  }
+  
+  if (!profile) {
+    profile = allContacts[0];
+  }
+  
   const isAgent = profile.type !== 'human';
 
   return (
@@ -51,17 +71,8 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
             <Verified size={24} className="text-primary" />
           </h2>
           <p className="text-outline font-medium tracking-wide">
-            {isAgent ? 'Transcend 数字智能实体' : '碳基联系人'}
+            {isAgent ? (profile.type === 'super' ? '超级伙伴' : '孪生伙伴') : '碳基联系人'}
           </p>
-          {isAgent && profile.activeHooks && profile.activeHooks.length > 0 && (
-             <div className="flex gap-2 mt-3">
-               {profile.activeHooks.map((hook: string) => (
-                 <span key={hook} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-[10px] uppercase font-bold tracking-widest">
-                   {hook}
-                 </span>
-               ))}
-             </div>
-          )}
         </header>
 
         <section className="bg-surface-container-high/40 p-8 rounded-3xl border border-white/5 space-y-8">
@@ -148,78 +159,52 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
 
       <footer className="fixed bottom-0 left-0 w-full p-6 bg-background/80 backdrop-blur-3xl border-t border-white/5 space-y-4">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
-          {!profile.isFriend && profile.id !== 'me' ? (
+          {!isAgent && (
             <button 
               onClick={() => {
-                onUpdateContact({ ...profile, isFriend: true });
-                if (onAction) {
-                  onAction('已发送好友/连接请求并成为联络人。', 'success');
+                if (isFriend && onRemoveFriend) {
+                  onRemoveFriend(profile.id);
+                } else if (!isFriend && onAddFriend) {
+                  onAddFriend(profile.id);
                 }
               }}
-              className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+              className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center transition-all active:scale-90 ${
+                isFriend 
+                  ? 'bg-surface-container-highest border border-white/5 text-outline hover:bg-error/10 hover:text-error hover:border-error/30' 
+                  : 'bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20'
+              }`}
             >
-              <Plus size={20} /> 添加对方为联络人
-            </button>
-          ) : (
-            <button 
-              onClick={() => {
-                onChatClick(profile.id);
-              }}
-              className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
-            >
-              <MessageCircle size={20} /> 进入对话
+              <Heart size={24} fill={isFriend ? 'currentColor' : 'none'} />
             </button>
           )}
-          <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
-            <Bolt size={24} />
+          <button 
+            onClick={() => {
+              onChatClick(profile.id);
+            }}
+            className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+          >
+            <MessageCircle size={20} /> 进入对话
           </button>
+          {isAgent && (
+            <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
+              <Bolt size={24} />
+            </button>
+          )}
         </div>
+        {!isAgent && (
+          <div className="max-w-2xl mx-auto text-center">
+            <span className={`text-[10px] font-bold uppercase tracking-widest ${isFriend ? 'text-primary' : 'text-outline/60'}`}>
+              {isFriend ? '已添加为好友' : '添加为好友'}
+            </span>
+          </div>
+        )}
       </footer>
     </motion.div>
   );
 };
 
-export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack: () => void, onCreateAgent: (agent: any) => void, onAction: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
-  const [name, setName] = useState('');
-  const [interests, setInterests] = useState('');
-  const [activeHooks, setActiveHooks] = useState<string[]>([]);
-  const [traits, setTraits] = useState<string[]>(['温柔感性']);
-  const [twinModel, setTwinModel] = useState<string | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-
-  const toggleHook = (hook: string) => {
-    setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
-  };
-
-  const toggleTrait = (trait: string) => {
-    setTraits(prev => prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]);
-  };
-
-  const handleCreate = () => {
-    if (!name.trim()) {
-      onAction('请填写 Agent 名称', 'error');
-      return;
-    }
-    const newAgent = {
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'a' + Date.now(),
-      name,
-      avatar: 'https://picsum.photos/seed/' + name + '/100/100',
-      isAgent: true,
-      type: 'agent',
-      status: 'Active',
-      lv: 1,
-      syncRate: 100,
-      bio: interests || '刚刚诞生的数字生命体',
-      traits,
-      model: twinModel || 'TP-Flux-Alpha v4',
-      activeHooks,
-      isFriend: true
-    };
-    onCreateAgent(newAgent);
-  };
-
+export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
   return (
-    <>
     <motion.div 
       initial={{ y: 50, opacity: 0 }} 
       animate={{ y: 0, opacity: 1 }}
@@ -245,28 +230,30 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
         </section>
 
         <section className="mb-16">
-          <div 
-            onClick={() => setIsCapturing(true)}
-            className={`group relative p-8 rounded-3xl bg-surface-container-low border ${twinModel ? 'border-primary' : 'border-primary/30'} hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between shadow-2xl shadow-primary/5`}
-          >
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity translate-x-1/4 -translate-y-1/4">
-              <Camera size={120} className="fill-current" />
-            </div>
-            <div className="relative z-10 flex items-center gap-6">
-              <div className="w-16 h-16 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-lg">
-                 <Heart size={32} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="group relative p-6 rounded-xl bg-surface-container-low border border-transparent hover:border-primary/20 transition-all cursor-pointer overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                <Heart size={64} className="fill-current" />
               </div>
-              <div>
-                <h3 className="text-2xl font-headline font-bold mb-1">
-                  {twinModel ? 'TwinCapture 已就绪' : '启动 TwinCapture 采集'}
-                </h3>
-                <p className="text-outline text-sm font-light">
-                  {twinModel ? `基于模型ID ${twinModel} 生成的数字孪生实体` : '基于 Gaussian Splatting / NeRF 生成您的全息数字孪生实体'}
-                </p>
+              <div className="relative z-10">
+                <Brain size={32} className="text-primary mb-4" />
+                <h3 className="text-xl font-headline font-bold mb-1">孪生伙伴</h3>
+                <p className="text-outline text-xs font-light">情感陪伴型 | 深度连接、共鸣与记忆</p>
               </div>
             </div>
-            <div className={`relative z-10 w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center transition-colors ${twinModel ? 'bg-primary text-on-primary' : 'text-primary group-hover:bg-primary group-hover:text-on-primary'}`}>
-              {twinModel ? <Verified size={20} /> : <ArrowRight size={20} />}
+            <div className="group relative p-6 rounded-xl bg-surface-container-high border border-primary/40 transition-all cursor-pointer overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                <Bolt size={64} className="fill-current" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <Brain size={32} className="text-primary mb-4" />
+                  <span className="bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mb-4">Selected</span>
+                </div>
+                <h3 className="text-xl font-headline font-bold mb-1">超级伙伴</h3>
+                <p className="text-outline text-xs font-light">工作能力型 | 逻辑、效率与多维执行</p>
+                <div className="mt-4 h-1 w-full bg-primary transition-all duration-500 rounded-full" />
+              </div>
             </div>
           </div>
         </section>
@@ -275,51 +262,18 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
           <div className="relative group">
             <label className="block text-[10px] uppercase tracking-widest text-outline mb-2 font-bold font-headline">Agent Name</label>
             <input 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
               className="w-full bg-transparent border-0 border-b-2 border-surface-container-highest py-4 text-2xl font-headline font-medium focus:ring-0 focus:border-primary placeholder:text-surface-highest transition-all" 
               placeholder="给您的伙伴起个名字..." 
               type="text"
             />
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 mb-4">
-              <Bolt size={18} className="text-primary" />
-              <h4 className="font-headline font-bold text-lg leading-none">外部生态接入 (API Hooks) & 自动化</h4>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div onClick={() => toggleHook('Open Claw')} className="p-4 rounded-xl border border-white/10 bg-surface-container-low flex justify-between items-center group cursor-pointer hover:border-primary/50 transition-colors">
-                  <div>
-                     <p className="font-bold font-headline mb-1">Open Claw API</p>
-                     <p className="text-[10px] text-outline">允许物理机械臂与真实世界接口联动</p>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full relative border transition-all ${activeHooks.includes('Open Claw') ? 'bg-primary/20 border-primary/50' : 'bg-surface-container-highest border-white/10'}`}>
-                     <div className={`absolute top-1 rounded-full w-3 h-3 transition-all ${activeHooks.includes('Open Claw') ? 'left-6 bg-primary' : 'left-1 bg-outline'}`} />
-                  </div>
-               </div>
-               <div onClick={() => toggleHook('Hermes Agent')} className="p-4 rounded-xl border border-white/10 bg-surface-container-low flex justify-between items-center group cursor-pointer hover:border-white/30 transition-colors">
-                  <div>
-                     <p className="font-bold font-headline mb-1">Hermes Agent</p>
-                     <p className="text-[10px] text-outline">高阶跨链 / 全球数据网络自动化代理</p>
-                  </div>
-                  <div className={`w-10 h-5 rounded-full relative border transition-all ${activeHooks.includes('Hermes Agent') ? 'bg-primary/20 border-primary/50' : 'bg-surface-container-highest border-white/10'}`}>
-                     <div className={`absolute top-1 rounded-full w-3 h-3 transition-all ${activeHooks.includes('Hermes Agent') ? 'left-6 bg-primary' : 'left-1 bg-outline'}`} />
-                  </div>
-               </div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="space-y-4">
               <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">性格特质 / Personality</label>
               <div className="flex flex-wrap gap-2">
-                {['理性冷静', '幽默风趣', '严谨专业', '温柔感性'].map((t) => (
-                  <span 
-                    key={t} 
-                    onClick={() => toggleTrait(t)}
-                    className={`px-4 py-2 rounded-full text-xs border transition-colors cursor-pointer ${traits.includes(t) ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high border-outline-variant hover:border-primary'}`}
-                  >
+                {['理性冷静', '幽默风趣', '严谨专业', '温柔感性'].map((t, i) => (
+                  <span key={t} className={`px-4 py-2 rounded-full text-xs border transition-colors cursor-pointer ${i === 2 ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high border-outline-variant hover:border-primary'}`}>
                     {t}
                   </span>
                 ))}
@@ -347,8 +301,6 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
           <div className="space-y-4">
             <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">兴趣爱好 / Interests</label>
             <textarea 
-              value={interests}
-              onChange={e => setInterests(e.target.value)}
               className="w-full bg-surface-container-lowest border-0 border-b border-outline-variant py-2 focus:ring-0 focus:border-primary transition-all text-sm resize-none" 
               placeholder="例如：量子物理、极简设计、中世纪历史..." 
               rows={2}
@@ -383,7 +335,7 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
                 <Verified size={14} className="text-primary" />
-                <p className="text-[10px] text-primary/80 leading-none">已针对核心网络优化同步与逻辑严密度</p>
+                <p className="text-[10px] text-primary/80 leading-none">已针对“超级伙伴”模式优化响应速度与逻辑严密度</p>
               </div>
             </div>
           </div>
@@ -397,183 +349,11 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
               每个用户最多创建 3 个 Agent。创建后需要经过 <span className="text-on-surface font-bold">Transcend 核心审核</span>，预计 5-10 分钟生效。
             </p>
           </div>
-          <button onClick={handleCreate} className="w-full md:w-auto px-12 py-4 bg-on-surface text-background rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl">
+          <button onClick={onBack} className="w-full md:w-auto px-12 py-4 bg-on-surface text-background rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl">
             CREATE AGENT
           </button>
         </div>
       </footer>
     </motion.div>
-
-    {isCapturing && (
-      <TwinCaptureScreen 
-         onBack={() => setIsCapturing(false)} 
-         onComplete={(modelId) => {
-            setTwinModel(modelId);
-            setIsCapturing(false);
-            onAction(`孪生模型采集完毕，已载入模型 ${modelId}`, 'success');
-         }}
-      />
-    )}
-    </>
-  );
-};
-
-export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, onAction }: {
-  onBack: () => void;
-  profile: any;
-  onSave: (data: any) => void;
-  onDeleteAgent: (id: string) => void;
-  onAction: (msg: string, type?: 'success' | 'error' | 'info') => void;
-}) => {
-  const [name, setName] = useState(profile.name);
-  const [traits, setTraits] = useState<string[]>(profile.traits || []);
-  const [activeHooks, setActiveHooks] = useState<string[]>(profile.activeHooks || []);
-  const [twinModel, setTwinModel] = useState<string | null>(profile.model || null);
-  const [isCapturing, setIsCapturing] = useState(false);
-
-  const toggleHook = (hook: string) => setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
-  const toggleTrait = (trait: string) => setTraits(prev => prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]);
-
-  return (
-    <>
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }} 
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-0 z-[110] bg-background overflow-y-auto custom-scrollbar"
-    >
-      <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-primary/20">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="font-headline tracking-[0.2em] text-xl font-bold uppercase text-primary">代理终端管理接口</h1>
-        </div>
-        <button 
-          onClick={() => {
-            onSave({ ...profile, name, traits, activeHooks, model: twinModel });
-            onAction('数字代理设定已更新并同步。', 'success');
-          }} 
-          className="text-background bg-primary font-bold tracking-widest text-xs uppercase px-6 py-2 rounded-full hover:opacity-80 transition-all font-headline"
-        >
-          保存同步
-        </button>
-      </nav>
-
-      <main className="pt-24 pb-48 px-6 max-w-2xl mx-auto space-y-12">
-        <header className="flex flex-col items-center">
-            <div className="relative mb-6">
-                <div className="absolute -inset-6 bg-primary/20 blur-3xl rounded-full" />
-                <img src={profile.avatar} className="w-32 h-32 rounded-3xl object-cover border-2 shadow-2xl relative border-primary" />
-                <div className="absolute -right-2 -bottom-2 bg-background p-2 rounded-xl border border-primary text-primary">
-                  <Database size={20} />
-                </div>
-            </div>
-            <p className="text-[10px] text-primary uppercase tracking-[0.3em] font-headline">UUID: {profile.id}</p>
-        </header>
-
-        <section className="space-y-4 bg-surface-container-low p-6 rounded-3xl border border-primary/10 relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-8 opacity-5">
-               <Bolt size={100} />
-             </div>
-             <label className="block text-[10px] uppercase tracking-widest text-primary mb-2 font-bold font-headline">覆盖代号 (Override Callsign)</label>
-             <input 
-               value={name}
-               onChange={(e) => setName(e.target.value)}
-               className="w-full bg-transparent border-0 border-b-2 border-primary/30 py-2 text-2xl font-headline font-bold text-on-surface focus:ring-0 focus:border-primary transition-all" 
-               type="text"
-             />
-        </section>
-
-        <section className="space-y-6">
-           <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">孪生模型同步 (Twin Model Sync)</h3>
-          <div 
-            onClick={() => setIsCapturing(true)}
-            className={`group relative p-6 rounded-3xl bg-surface-container-low border ${twinModel ? 'border-primary' : 'border-primary/30'} hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between`}
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity translate-x-1/4 -translate-y-1/4">
-              <Camera size={80} className="fill-current text-primary" />
-            </div>
-            <div className="relative z-10 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-lg">
-                 <Heart size={24} />
-              </div>
-              <div>
-                <h3 className="text-xl font-headline font-bold mb-1 text-on-surface">
-                  重新采集模型数据
-                </h3>
-                <p className="text-outline text-xs font-light">
-                  {twinModel ? `当前挂载模型: ${twinModel}` : '当前无模型实体数据'}
-                </p>
-              </div>
-            </div>
-            <div className={`relative z-10 w-8 h-8 rounded-full border-2 border-primary flex items-center justify-center transition-colors ${twinModel ? 'bg-primary text-on-primary' : 'text-primary group-hover:bg-primary group-hover:text-on-primary'}`}>
-              {twinModel ? <Verified size={16} /> : <ArrowRight size={16} />}
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-6">
-           <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">底层性格向量集 (Traits Matrix)</h3>
-           <div className="flex flex-wrap gap-3">
-             {['温柔感性', '极客冷静', '傲娇毒舌', '哲学思辨', '元气满点', '黑暗深邃'].map(trait => (
-               <button 
-                 key={trait}
-                 onClick={() => toggleTrait(trait)}
-                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all font-headline ${traits.includes(trait) ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-container-high text-outline hover:bg-surface-container-highest'}`}
-               >
-                 {trait}
-               </button>
-             ))}
-           </div>
-        </section>
-
-        <section className="space-y-6">
-          <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">外接感知能力 (External Hooks)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             {[
-               { id: 'hook-vision', title: 'Open Claw (视觉流)', desc: '允许Agent查看您发送的图片和屏幕流' },
-               { id: 'hook-data', title: 'Hermes (数据代理)', desc: '深度授权访问通讯录和公共状态树' }
-             ].map(hook => (
-               <div 
-                 key={hook.id}
-                 onClick={() => toggleHook(hook.id)}
-                 className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${activeHooks.includes(hook.id) ? 'border-primary bg-primary/5' : 'border-surface-container-highest hover:border-primary/30'}`}
-               >
-                 <div className="flex justify-between items-center mb-2">
-                   <h4 className="font-bold text-sm tracking-wider font-headline">{hook.title}</h4>
-                   <div className={`w-4 h-4 rounded-full border-2 ${activeHooks.includes(hook.id) ? 'border-primary bg-primary' : 'border-outline'}`} />
-                 </div>
-                 <p className="text-xs text-outline">{hook.desc}</p>
-               </div>
-             ))}
-          </div>
-        </section>
-
-        <section className="pt-12">
-            <button 
-                onClick={() => onDeleteAgent(profile.id)} 
-                className="w-full py-5 rounded-2xl bg-error/10 text-error flex items-center justify-center gap-3 border border-error/20 hover:bg-error/20 hover:border-error transition-all font-bold tracking-[0.2em] text-sm uppercase group"
-            >
-                <div className="p-2 rounded-full bg-error text-white group-hover:scale-110 transition-transform">
-                   <MoreVertical size={16} /> 
-                </div>
-                物理销毁当前生命实体 (IRREVERSIBLE SECURE WIPE)
-            </button>
-        </section>
-      </main>
-    </motion.div>
-
-    {isCapturing && (
-      <TwinCaptureScreen 
-         onBack={() => setIsCapturing(false)} 
-         onComplete={(modelId) => {
-            setTwinModel(modelId);
-            setIsCapturing(false);
-            onAction(`底层网路重排完毕，已成功覆盖数字孪生模型 ${modelId}`, 'success');
-         }}
-      />
-    )}
-    </>
   );
 };
