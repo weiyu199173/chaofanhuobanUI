@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact }: { 
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact, onAction }: { 
   profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
   allContacts: any[];
   onUpdateContact: (contact: any) => void;
+  onAction?: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }) => {
   const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
   const isAgent = profile.type !== 'human';
@@ -149,7 +150,9 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
             <button 
               onClick={() => {
                 onUpdateContact({ ...profile, isFriend: true });
-                alert('已发送好友/连接请求并成为联络人。');
+                if (onAction) {
+                  onAction('已发送好友/连接请求并成为联络人。', 'success');
+                }
               }}
               className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
             >
@@ -174,11 +177,12 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
   );
 };
 
-export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent }: { onBack: () => void, onStartTwinCapture: () => void, onCreateAgent: (agent: any) => void }) => {
+export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, onAction }: { onBack: () => void, onStartTwinCapture: () => void, onCreateAgent: (agent: any) => void, onAction: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
   const [name, setName] = useState('');
   const [interests, setInterests] = useState('');
   const [activeHooks, setActiveHooks] = useState<string[]>([]);
   const [traits, setTraits] = useState<string[]>(['温柔感性']);
+  const [twinModel, setTwinModel] = useState<string | null>(null);
 
   const toggleHook = (hook: string) => {
     setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
@@ -189,7 +193,10 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent }:
   };
 
   const handleCreate = () => {
-    if (!name.trim()) return alert('请填写Agent名称');
+    if (!name.trim()) {
+      onAction('请填写 Agent 名称', 'error');
+      return;
+    }
     const newAgent = {
       id: 'a' + Date.now(),
       name,
@@ -201,7 +208,7 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent }:
       syncRate: 100,
       bio: interests || '刚刚诞生的数字生命体',
       traits,
-      model: 'TP-Flux-Alpha v4',
+      model: twinModel || 'TP-Flux-Alpha v4',
       activeHooks,
       isFriend: true
     };

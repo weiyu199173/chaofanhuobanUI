@@ -343,6 +343,7 @@ export default function App() {
                showToast(`数字伙伴 [${agentData.name}] 创建成功！`, 'success');
                setCurrentView('main');
             }}
+            onAction={showToast}
           />
         )}
         
@@ -374,6 +375,7 @@ export default function App() {
             onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
             onBack={() => setCurrentView('main')} 
             onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }}
+            onAction={showToast}
           />
         )}
       </AnimatePresence>
