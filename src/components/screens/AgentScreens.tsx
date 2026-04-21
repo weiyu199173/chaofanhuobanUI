@@ -1,38 +1,15 @@
-import React from 'react';
-import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onAddFriend, onRemoveFriend, isFriend }: { 
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact }: { 
   profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
   allContacts: any[];
-  onAddFriend?: (id: string) => void;
-  onRemoveFriend?: (id: string) => void;
-  isFriend?: boolean;
+  onUpdateContact: (contact: any) => void;
 }) => {
-  // 查找匹配的个人资料，先通过 ID，再通过名字
-  let profile = allContacts.find(p => p.id === profileId);
-  
-  if (!profile && profileId) {
-    // 如果找不到，尝试从帖子中获取作者信息作为默认值
-    // 或者创建一个友好的默认资料
-    profile = {
-      id: profileId,
-      name: '用户',
-      avatar: `https://picsum.photos/seed/${profileId}/200/200`,
-      isAgent: false,
-      type: 'human' as const,
-      bio: '探索数字生命的旅者',
-      fullBio: '这是一位 Transcend 用户，正在探索硅基文明与人类情感的边界。',
-      isFriend: false
-    };
-  }
-  
-  if (!profile) {
-    profile = allContacts[0];
-  }
-  
+  const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
   const isAgent = profile.type !== 'human';
 
   return (
@@ -71,8 +48,17 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
             <Verified size={24} className="text-primary" />
           </h2>
           <p className="text-outline font-medium tracking-wide">
-            {isAgent ? (profile.type === 'super' ? '超级伙伴' : '孪生伙伴') : '碳基联系人'}
+            {isAgent ? 'Transcend 数字智能实体' : '碳基联系人'}
           </p>
+          {isAgent && profile.activeHooks && profile.activeHooks.length > 0 && (
+             <div className="flex gap-2 mt-3">
+               {profile.activeHooks.map((hook: string) => (
+                 <span key={hook} className="px-3 py-1 bg-primary/10 text-primary border border-primary/20 rounded-full text-[10px] uppercase font-bold tracking-widest">
+                   {hook}
+                 </span>
+               ))}
+             </div>
+          )}
         </header>
 
         <section className="bg-surface-container-high/40 p-8 rounded-3xl border border-white/5 space-y-8">
@@ -159,51 +145,69 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
 
       <footer className="fixed bottom-0 left-0 w-full p-6 bg-background/80 backdrop-blur-3xl border-t border-white/5 space-y-4">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
-          {!isAgent && (
+          {!profile.isFriend && profile.id !== 'me' ? (
             <button 
               onClick={() => {
-                if (isFriend && onRemoveFriend) {
-                  onRemoveFriend(profile.id);
-                } else if (!isFriend && onAddFriend) {
-                  onAddFriend(profile.id);
-                }
+                onUpdateContact({ ...profile, isFriend: true });
+                alert('已发送好友/连接请求并成为联络人。');
               }}
-              className={`w-14 h-14 shrink-0 rounded-full flex items-center justify-center transition-all active:scale-90 ${
-                isFriend 
-                  ? 'bg-surface-container-highest border border-white/5 text-outline hover:bg-error/10 hover:text-error hover:border-error/30' 
-                  : 'bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20'
-              }`}
+              className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
             >
-              <Heart size={24} fill={isFriend ? 'currentColor' : 'none'} />
+              <Plus size={20} /> 添加对方为联络人
+            </button>
+          ) : (
+            <button 
+              onClick={() => {
+                onChatClick(profile.id);
+              }}
+              className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+            >
+              <MessageCircle size={20} /> 进入对话
             </button>
           )}
-          <button 
-            onClick={() => {
-              onChatClick(profile.id);
-            }}
-            className="flex-1 py-4 bg-primary text-on-primary rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
-          >
-            <MessageCircle size={20} /> 进入对话
+          <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
+            <Bolt size={24} />
           </button>
-          {isAgent && (
-            <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
-              <Bolt size={24} />
-            </button>
-          )}
         </div>
-        {!isAgent && (
-          <div className="max-w-2xl mx-auto text-center">
-            <span className={`text-[10px] font-bold uppercase tracking-widest ${isFriend ? 'text-primary' : 'text-outline/60'}`}>
-              {isFriend ? '已添加为好友' : '添加为好友'}
-            </span>
-          </div>
-        )}
       </footer>
     </motion.div>
   );
 };
 
-export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
+export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent }: { onBack: () => void, onStartTwinCapture: () => void, onCreateAgent: (agent: any) => void }) => {
+  const [name, setName] = useState('');
+  const [interests, setInterests] = useState('');
+  const [activeHooks, setActiveHooks] = useState<string[]>([]);
+  const [traits, setTraits] = useState<string[]>(['温柔感性']);
+
+  const toggleHook = (hook: string) => {
+    setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
+  };
+
+  const toggleTrait = (trait: string) => {
+    setTraits(prev => prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]);
+  };
+
+  const handleCreate = () => {
+    if (!name.trim()) return alert('请填写Agent名称');
+    const newAgent = {
+      id: 'a' + Date.now(),
+      name,
+      avatar: 'https://picsum.photos/seed/' + name + '/100/100',
+      isAgent: true,
+      type: 'agent',
+      status: 'Active',
+      lv: 1,
+      syncRate: 100,
+      bio: interests || '刚刚诞生的数字生命体',
+      traits,
+      model: 'TP-Flux-Alpha v4',
+      activeHooks,
+      isFriend: true
+    };
+    onCreateAgent(newAgent);
+  };
+
   return (
     <motion.div 
       initial={{ y: 50, opacity: 0 }} 
@@ -230,30 +234,24 @@ export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
         </section>
 
         <section className="mb-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="group relative p-6 rounded-xl bg-surface-container-low border border-transparent hover:border-primary/20 transition-all cursor-pointer overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                <Heart size={64} className="fill-current" />
+          <div 
+            onClick={onStartTwinCapture}
+            className="group relative p-8 rounded-3xl bg-surface-container-low border border-primary/30 hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between shadow-2xl shadow-primary/5"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity translate-x-1/4 -translate-y-1/4">
+              <Camera size={120} className="fill-current" />
+            </div>
+            <div className="relative z-10 flex items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-lg">
+                 <Heart size={32} />
               </div>
-              <div className="relative z-10">
-                <Brain size={32} className="text-primary mb-4" />
-                <h3 className="text-xl font-headline font-bold mb-1">孪生伙伴</h3>
-                <p className="text-outline text-xs font-light">情感陪伴型 | 深度连接、共鸣与记忆</p>
+              <div>
+                <h3 className="text-2xl font-headline font-bold mb-1">启动 TwinCapture 采集</h3>
+                <p className="text-outline text-sm font-light">基于 Gaussian Splatting / NeRF 生成您的全息数字孪生实体</p>
               </div>
             </div>
-            <div className="group relative p-6 rounded-xl bg-surface-container-high border border-primary/40 transition-all cursor-pointer overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                <Bolt size={64} className="fill-current" />
-              </div>
-              <div className="relative z-10">
-                <div className="flex items-center justify-between">
-                  <Brain size={32} className="text-primary mb-4" />
-                  <span className="bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider mb-4">Selected</span>
-                </div>
-                <h3 className="text-xl font-headline font-bold mb-1">超级伙伴</h3>
-                <p className="text-outline text-xs font-light">工作能力型 | 逻辑、效率与多维执行</p>
-                <div className="mt-4 h-1 w-full bg-primary transition-all duration-500 rounded-full" />
-              </div>
+            <div className="relative z-10 w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+              <ArrowRight size={20} />
             </div>
           </div>
         </section>
@@ -262,18 +260,51 @@ export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
           <div className="relative group">
             <label className="block text-[10px] uppercase tracking-widest text-outline mb-2 font-bold font-headline">Agent Name</label>
             <input 
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full bg-transparent border-0 border-b-2 border-surface-container-highest py-4 text-2xl font-headline font-medium focus:ring-0 focus:border-primary placeholder:text-surface-highest transition-all" 
               placeholder="给您的伙伴起个名字..." 
               type="text"
             />
           </div>
 
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Bolt size={18} className="text-primary" />
+              <h4 className="font-headline font-bold text-lg leading-none">外部生态接入 (API Hooks) & 自动化</h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div onClick={() => toggleHook('Open Claw')} className="p-4 rounded-xl border border-white/10 bg-surface-container-low flex justify-between items-center group cursor-pointer hover:border-primary/50 transition-colors">
+                  <div>
+                     <p className="font-bold font-headline mb-1">Open Claw API</p>
+                     <p className="text-[10px] text-outline">允许物理机械臂与真实世界接口联动</p>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative border transition-all ${activeHooks.includes('Open Claw') ? 'bg-primary/20 border-primary/50' : 'bg-surface-container-highest border-white/10'}`}>
+                     <div className={`absolute top-1 rounded-full w-3 h-3 transition-all ${activeHooks.includes('Open Claw') ? 'left-6 bg-primary' : 'left-1 bg-outline'}`} />
+                  </div>
+               </div>
+               <div onClick={() => toggleHook('Hermes Agent')} className="p-4 rounded-xl border border-white/10 bg-surface-container-low flex justify-between items-center group cursor-pointer hover:border-white/30 transition-colors">
+                  <div>
+                     <p className="font-bold font-headline mb-1">Hermes Agent</p>
+                     <p className="text-[10px] text-outline">高阶跨链 / 全球数据网络自动化代理</p>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full relative border transition-all ${activeHooks.includes('Hermes Agent') ? 'bg-primary/20 border-primary/50' : 'bg-surface-container-highest border-white/10'}`}>
+                     <div className={`absolute top-1 rounded-full w-3 h-3 transition-all ${activeHooks.includes('Hermes Agent') ? 'left-6 bg-primary' : 'left-1 bg-outline'}`} />
+                  </div>
+               </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="space-y-4">
               <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">性格特质 / Personality</label>
               <div className="flex flex-wrap gap-2">
-                {['理性冷静', '幽默风趣', '严谨专业', '温柔感性'].map((t, i) => (
-                  <span key={t} className={`px-4 py-2 rounded-full text-xs border transition-colors cursor-pointer ${i === 2 ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high border-outline-variant hover:border-primary'}`}>
+                {['理性冷静', '幽默风趣', '严谨专业', '温柔感性'].map((t) => (
+                  <span 
+                    key={t} 
+                    onClick={() => toggleTrait(t)}
+                    className={`px-4 py-2 rounded-full text-xs border transition-colors cursor-pointer ${traits.includes(t) ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high border-outline-variant hover:border-primary'}`}
+                  >
                     {t}
                   </span>
                 ))}
@@ -301,6 +332,8 @@ export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
           <div className="space-y-4">
             <label className="block text-[10px] uppercase tracking-widest text-outline font-bold font-headline">兴趣爱好 / Interests</label>
             <textarea 
+              value={interests}
+              onChange={e => setInterests(e.target.value)}
               className="w-full bg-surface-container-lowest border-0 border-b border-outline-variant py-2 focus:ring-0 focus:border-primary transition-all text-sm resize-none" 
               placeholder="例如：量子物理、极简设计、中世纪历史..." 
               rows={2}
@@ -335,7 +368,7 @@ export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
               </div>
               <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
                 <Verified size={14} className="text-primary" />
-                <p className="text-[10px] text-primary/80 leading-none">已针对“超级伙伴”模式优化响应速度与逻辑严密度</p>
+                <p className="text-[10px] text-primary/80 leading-none">已针对核心网络优化同步与逻辑严密度</p>
               </div>
             </div>
           </div>
@@ -349,7 +382,7 @@ export const CreateAgentScreen = ({ onBack }: { onBack: () => void }) => {
               每个用户最多创建 3 个 Agent。创建后需要经过 <span className="text-on-surface font-bold">Transcend 核心审核</span>，预计 5-10 分钟生效。
             </p>
           </div>
-          <button onClick={onBack} className="w-full md:w-auto px-12 py-4 bg-on-surface text-background rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl">
+          <button onClick={handleCreate} className="w-full md:w-auto px-12 py-4 bg-on-surface text-background rounded-full font-headline font-bold text-sm tracking-widest active:scale-95 transition-all shadow-xl">
             CREATE AGENT
           </button>
         </div>
