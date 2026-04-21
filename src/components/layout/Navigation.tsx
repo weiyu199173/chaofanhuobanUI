@@ -1,27 +1,26 @@
 import React, { useState } from 'react';
-import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut, Key } from 'lucide-react';
+import { Search, X, Compass, MessageCircle, Users, User, Globe, Star, Settings, Shield, Layout, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
 import { LaserButton } from '../Common';
-import { AppTab } from '../../types';
+import { AppTab, AppView } from '../../types';
 
-export const DynamicSearchBar = ({
-  placeholder,
-  value,
-  onChange,
-  className = ""
-}: {
-  placeholder: string;
-  value: string;
+export const DynamicSearchBar = ({ 
+  placeholder, 
+  value, 
+  onChange, 
+  className = "" 
+}: { 
+  placeholder: string; 
+  value: string; 
   onChange: (val: string) => void;
   className?: string;
 }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
-    <motion.div
+    <motion.div 
       initial={false}
-      animate={{
+      animate={{ 
         width: isFocused ? '100%' : '100%',
         boxShadow: isFocused ? '0 0 15px rgba(29, 155, 240, 0.2)' : '0 0 0px rgba(0,0,0,0)',
       }}
@@ -30,7 +29,7 @@ export const DynamicSearchBar = ({
       } ${className}`}
     >
       <motion.div
-        animate={{
+        animate={{ 
           rotate: isFocused ? 90 : 0,
           scale: isFocused ? 1.1 : 1,
           color: isFocused ? 'var(--color-primary)' : 'var(--color-outline)'
@@ -39,9 +38,9 @@ export const DynamicSearchBar = ({
       >
         <Search size={18} />
       </motion.div>
-      <input
-        type="text"
-        placeholder={placeholder}
+      <input 
+        type="text" 
+        placeholder={placeholder} 
         value={value}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -50,7 +49,7 @@ export const DynamicSearchBar = ({
       />
       <AnimatePresence>
         {value && (
-          <motion.button
+          <motion.button 
             initial={{ opacity: 0, scale: 0.5, rotate: -45 }}
             animate={{ opacity: 1, scale: 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 0.5, rotate: 45 }}
@@ -61,10 +60,10 @@ export const DynamicSearchBar = ({
           </motion.button>
         )}
       </AnimatePresence>
-
-      <motion.div
+      
+      <motion.div 
         initial={false}
-        animate={{
+        animate={{ 
           scaleX: isFocused ? 1 : 0,
           opacity: isFocused ? 1 : 0
         }}
@@ -75,12 +74,11 @@ export const DynamicSearchBar = ({
 };
 
 export const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, onTabChange: (tab: AppTab) => void }) => {
-  const navigate = useNavigate();
-  const tabs: { id: AppTab; label: string; icon: any; path: string }[] = [
-    { id: 'square', label: '广场', icon: Compass, path: '/square' },
-    { id: 'messages', label: '消息', icon: MessageCircle, path: '/messages' },
-    { id: 'contacts', label: '通讯录', icon: Users, path: '/contacts' },
-    { id: 'me', label: '我', icon: User, path: '/me' },
+  const tabs: { id: AppTab; label: string; icon: any }[] = [
+    { id: 'square', label: '广场', icon: Compass },
+    { id: 'messages', label: '消息', icon: MessageCircle },
+    { id: 'contacts', label: '通讯录', icon: Users },
+    { id: 'me', label: '我', icon: User },
   ];
 
   return (
@@ -88,15 +86,12 @@ export const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, on
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => {
-            onTabChange(tab.id);
-            navigate(tab.path);
-          }}
+          onClick={() => onTabChange(tab.id)}
           className={`flex flex-col items-center justify-center transition-all duration-200 active:scale-110 ${
-            activeTab === tab.id ? 'text-cyan-400 font-bold' : 'text-outline hover:text-on-surface'
+            activeTab === tab.id ? 'text-primary font-bold' : 'text-outline hover:text-on-surface'
           }`}
         >
-          <tab.icon size={24} className={activeTab === tab.id ? 'fill-cyan-400/20' : ''} />
+          <tab.icon size={24} className={activeTab === tab.id ? 'fill-primary/20' : ''} />
           <span className="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">{tab.label}</span>
         </button>
       ))}
@@ -104,16 +99,14 @@ export const BottomNavBar = ({ activeTab, onTabChange }: { activeTab: AppTab, on
   );
 };
 
-export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: string) => void, onTabChange: (tab: AppTab) => void, userProfile: any }) => {
-  const navigate = useNavigate();
-  const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: string }[] = [
+export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabChange, userProfile }: { isOpen: boolean, onClose: () => void, onLogout: () => void, onNavigate: (view: AppView) => void, onTabChange: (tab: AppTab) => void, userProfile: any }) => {
+  const menuItems: { icon: any, label: string, count?: string, action?: () => void, view?: AppView }[] = [
     { icon: Globe, label: '人机广场', count: '128', action: () => {
       onTabChange('square');
-      onNavigate('square');
+      onNavigate('main');
     }},
     { icon: Compass, label: '技能仓库', count: 'New', view: 'skill-warehouse' },
     { icon: Star, label: 'MCP 市场', count: 'VIP', view: 'mcp-market' },
-    { icon: Key, label: 'Token 管理', view: 'token-management' },
     { icon: Settings, label: '系统设置', view: 'app-settings' },
   ];
 
@@ -121,14 +114,14 @@ export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabCha
     <AnimatePresence>
       {isOpen && (
         <>
-          <motion.div
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/60 backdrop-blur-md z-[200] cursor-pointer"
           />
-          <motion.div
+          <motion.div 
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -175,7 +168,7 @@ export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabCha
 
             <nav className="flex-1 px-4 space-y-2">
               {menuItems.map((item, i) => (
-                <LaserButton
+                <LaserButton 
                   key={item.label}
                   onClick={() => {
                     if (item.action) {
@@ -199,7 +192,7 @@ export const SideNavigation = ({ isOpen, onClose, onLogout, onNavigate, onTabCha
             </nav>
 
             <footer className="p-8 border-t border-white/5 space-y-6">
-              <LaserButton
+              <LaserButton 
                 onClick={() => {
                   onLogout();
                   onClose();

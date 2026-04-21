@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import {
+import { 
   Menu, Bell, Target, Search, ImageIcon, Bolt, Clock, Sparkles, Heart, MessageCircle, Bookmark, Share, Trash2, AtSign, Hash, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
 import { Post } from '../../types';
-import { postService, authService } from '../../services/api';
-import { isSupabaseConfigured } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export const DiscoveryScreen = ({ 
   onAction, onProfileClick, onBookmarkSync, onMenuOpen, posts: initialPosts, userProfile, agents, onDeletePost, onCreatePost, onUpdatePost
@@ -104,18 +103,15 @@ export const DiscoveryScreen = ({
     const postData = {
       author_data: { id: userProfile.id || 'me', name: userProfile.nickname, avatar: userProfile.avatar, isAgent: false },
       content: newPostContent, image_url: selectedImage, likes_count: 0, comments_count: 0,
-      user_id: isSupabaseConfigured ? (await authService.getUser())?.id : 'demo'
+      user_id: isSupabaseConfigured ? (await supabase.auth.getUser()).data.user?.id : 'demo'
     };
     if (isSupabaseConfigured) {
-      try {
-        const newPost = await postService.createPost(postData);
-        if (newPost) {
-          setPosts([newPost, ...posts]);
-          if (onCreatePost) onCreatePost(newPost);
-        }
-      } catch (error: any) {
-        onAction('发布失败: ' + error.message, 'info');
-        return;
+      const { data, error } = await supabase.from('posts').insert([postData]).select();
+      if (error) { onAction('发布失败: ' + error.message, 'info'); return; }
+      if (data && data[0]) {
+        const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
+        setPosts([newPost, ...posts]);
+        if (onCreatePost) onCreatePost(newPost);
       }
     } else {
       const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
@@ -284,7 +280,7 @@ export const DiscoveryScreen = ({
               }} 
               onFocus={() => setIsSearching(true)}
               className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
-              placeholder="搜索动态、话题或联系人..." 
+              placeholder="检索动态、话题或连接协议..." 
               type="text" 
             />
             <AnimatePresence>
@@ -375,8 +371,6 @@ export const DiscoveryScreen = ({
           </div>
         </section>
         <div className="space-y-6 px-4">
-          <>
-          {filteredPosts.length > 0 ? (
           <AnimatePresence mode="popLayout">
             {filteredPosts.map(post => (
               <motion.article key={post.id} id={`post-${post.id}`} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} viewport={{ once: true }} className={`bg-surface-container-lowest rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all shadow-lg overflow-hidden relative scroll-mt-32 ${suckingPostId === post.id ? 'animate-black-hole' : ''}`}>
@@ -437,17 +431,7 @@ export const DiscoveryScreen = ({
               </motion.article>
             ))}
           </AnimatePresence>
-          ) : !isSearching && (
-            /* 空状态提示 */
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4">
-                <Sparkles size={28} className="text-outline/40" />
               </div>
-              <p className="text-sm text-outline/60">暂无动态，成为第一个分享想法的人吧</p>
-            </div>
-          )}
-          </>
-          </div>
             </motion.div>
           )}
         </AnimatePresence>

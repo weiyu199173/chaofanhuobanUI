@@ -3,17 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, Info } from 'lucide-react';
-import { isSupabaseConfigured } from './lib/supabase';
-
-// Store
-import { useAuthStore } from './store/useAuthStore';
-import { useAppStore } from './store/useAppStore';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 
 // Shared and Layout
+import { AppTab, AppView, Post, Agent } from './types';
 import { BottomNavBar, SideNavigation } from './components/layout/Navigation';
 
 // Core Flow Screens
@@ -31,368 +27,200 @@ import { AgentDetailScreen, CreateAgentScreen, AgentManagementScreen } from './c
 import { EditProfileScreen, MyMomentsScreen, SkillWarehouseScreen, MCPMarketScreen, SettingsScreen } from './components/screens/SettingsScreens';
 import { ChatScreen } from './components/screens/ChatScreen';
 import { TwinCaptureScreen } from './components/screens/TwinCapture/TwinCaptureScreen';
-import { TokenManagementScreen } from './components/screens/TokenManagementScreen';
-import { AgentProfileScreen } from './components/screens/AgentProfileScreen';
 
-import { postService, profileService, authService } from './services/api';
+import { mockProfiles } from './data/mockProfiles';
 
-/** 主布局组件 - 包含底部导航和侧边栏 */
-function MainLayout() {
-  const { activeTab, isSidebarOpen, setIsSidebarOpen, setActiveTab, showToast } = useAppStore();
-  const { userProfile } = useAuthStore();
-  const { posts, allContacts, bookmarkedPosts, agents } = useAppStore();
-  const navigate = useNavigate();
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AppTab>('square');
+  const [currentView, setCurrentView] = useState<AppView>('login');
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [chatTargetId, setChatTargetId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<Post[]>([]);
+  const [allContacts, setAllContacts] = useState(mockProfiles);
 
-  const handleLogout = async () => {
-    await useAuthStore.getState().logout();
-    setIsSidebarOpen(false);
-    navigate('/login');
+  const [posts, setPosts] = useState<Post[]>([
+    { id: 'p1', author: { id: 'usr-Alex', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+    { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
+    { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+  ]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const fetchPosts = async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching posts:', error);
+      } else if (data) {
+        const transformedPosts: Post[] = data.map((item: any) => ({
+          id: item.id,
+          author: item.author_data,
+          content: item.content,
+          time: new Date(item.created_at).toLocaleString('zh-CN', { hour12: false }),
+          image: item.image_url,
+          likes: item.likes_count || 0,
+          comments: item.comments_count || 0,
+          liked: false
+        }));
+        setPosts(transformedPosts);
+        
+        // Dynamically add unknown users from posts to allContacts
+        setAllContacts(prev => {
+          const newContacts = [...prev];
+          transformedPosts.forEach(post => {
+            if (!newContacts.some(c => c.id === post.author.id)) {
+              newContacts.push({
+                id: post.author.id,
+                name: post.author.name,
+                avatar: post.author.avatar,
+                isAgent: post.author.isAgent || false,
+                type: post.author.isAgent ? 'agent' : 'human',
+                bio: '该实体似乎刚刚加入 Transcend 网络。',
+                isFriend: false
+              });
+            }
+          });
+          return newContacts;
+        });
+      }
+    };
+
+    fetchPosts();
+
+    const fetchUserAgents = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_agent', true);
+      
+      if (!error && data) {
+        setAllContacts(prev => {
+          const newContacts = [...prev.filter(c => c.isAgent === false || c.id === '1' || c.id === '2')]; // Keep mock agents
+          data.forEach(p => {
+             if (!newContacts.some(c => c.id === p.id)) {
+               newContacts.push({
+                 id: p.id,
+                 name: p.name,
+                 avatar: p.avatar,
+                 isAgent: p.is_agent,
+                 type: p.type,
+                 status: p.status,
+                 lv: p.lv,
+                 syncRate: p.sync_rate,
+                 bio: p.bio,
+                 traits: p.traits || [],
+                 model: p.model,
+                 activeHooks: p.active_hooks || [],
+                 isFriend: true
+               });
+             }
+          });
+          // Also set the correct profile user info if it's the main account, but here we just fetch agents.
+          return newContacts;
+        });
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        fetchUserAgents(session.user.id);
+        if (session.user.user_metadata?.nickname) {
+          setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
+        }
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        showToast('账号验证成功，欢迎回来', 'success');
+        fetchUserAgents(session.user.id);
+        if (session.user.user_metadata?.nickname) {
+          setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
+        }
+      } else if (event === 'INITIAL_SESSION' && session) {
+        setIsLoggedIn(true);
+        setCurrentView('main');
+        fetchUserAgents(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+        setCurrentView('login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const showToast = (message: string, type: 'success' | 'info' = 'info') => {
+    setToast({ message, type });
   };
 
-  const handleNavigate = (view: string) => {
-    navigate('/' + view);
+  const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+
+  const [userProfile, setUserProfile] = useState({
+    id: 'me',
+    nickname: 'Alex Chen',
+    avatar: 'https://picsum.photos/seed/profile/200/200',
+    gender: '男',
+    bio: '数字生命架构师 | 致力于构建永恒的代理共生关系。探索硅基文明与人类情感的边界。',
+    phone: '138 8888 0000',
+    accountId: 'Transcend#001',
+    region: '上海，静安',
+    isAgent: false
+  });
+
+  const agents = allContacts.filter(c => c.isAgent);
+
+  const myMoments = posts.filter(p => p.author.name === userProfile.nickname);
+
+  const handleLogout = async () => {
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
+    setIsLoggedIn(false);
+    setCurrentView('login');
+    setIsSidebarOpen(false);
   };
 
   const handleProfileDetail = (id: string) => {
     if (id === 'me') {
       setActiveTab('me');
     } else {
-      useAppStore.getState().setSelectedProfileId(id);
-      navigate('/agent-detail');
+      setSelectedProfileId(id);
+      setCurrentView('agent-detail');
     }
   };
 
-  return (
-    <motion.div
-      key="main-app"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="h-full"
-    >
-      <Routes>
-        <Route
-          path="/square"
-          element={
-            <DiscoveryScreen
-              onAction={showToast}
-              onProfileClick={handleProfileDetail}
-              onBookmarkSync={(post, isRemoved) => useAppStore.getState().bookmarkPost(post, isRemoved)}
-              onMenuOpen={() => setIsSidebarOpen(true)}
-              posts={posts}
-              userProfile={userProfile}
-              agents={allContacts}
-              onCreatePost={(post) => useAppStore.getState().addPost(post)}
-              onUpdatePost={(post) => useAppStore.getState().updatePost(post)}
-              onDeletePost={async (id) => {
-                useAppStore.getState().deletePost(id);
-                try {
-                  await postService.deletePost(id);
-                } catch (e: any) {
-                  showToast('云端删帖失败: ' + e.message, 'info');
-                }
-              }}
-            />
-          }
-        />
-        <Route
-          path="/messages"
-          element={
-            <MessagesScreen
-              onChatClick={(id) => {
-                useAppStore.getState().setChatTargetId(id);
-                navigate('/chat');
-              }}
-              onMenuOpen={() => setIsSidebarOpen(true)}
-              allContacts={allContacts}
-            />
-          }
-        />
-        <Route
-          path="/contacts"
-          element={
-            <ContactsScreen
-              allContacts={allContacts}
-              onChatClick={(id) => {
-                useAppStore.getState().setChatTargetId(id);
-                navigate('/chat');
-              }}
-              onDetailClick={handleProfileDetail}
-              onAction={showToast}
-              onMenuOpen={() => setIsSidebarOpen(true)}
-              onUpdateContact={(updated) => useAppStore.getState().updateContact(updated)}
-              onCreateAgent={() => navigate('/create-agent')}
-            />
-          }
-        />
-        <Route
-          path="/me"
-          element={
-            <MeScreen
-              onCreateAgent={() => navigate('/create-agent')}
-              onManageAgent={(id) => {
-                useAppStore.getState().setEditingAgentId(id);
-                navigate('/edit-agent-profile');
-              }}
-              onEditProfile={() => navigate('/edit-profile')}
-              onMyMoments={() => navigate('/my-moments')}
-              bookmarkedPosts={bookmarkedPosts}
-              onMenuOpen={() => setIsSidebarOpen(true)}
-              onLogout={handleLogout}
-              userProfile={userProfile}
-              agents={agents()}
-            />
-          }
-        />
-        {/* 默认重定向到广场 */}
-        <Route path="*" element={<Navigate to="/square" replace />} />
-      </Routes>
-      <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
-      <SideNavigation
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        onLogout={handleLogout}
-        onNavigate={handleNavigate}
-        onTabChange={setActiveTab}
-        userProfile={userProfile}
-      />
-    </motion.div>
-  );
-}
+  const handleManageAgent = (id: string) => {
+    setEditingAgentId(id);
+    setCurrentView('edit-agent-profile');
+  };
 
-/** 子页面路由包装器 - 仅在当前路径匹配子路由时渲染，避免 catch-all 与 MainLayout 冲突 */
-const SUB_ROUTE_PATHS = [
-  '/edit-profile', '/edit-agent-profile', '/my-moments',
-  '/skill-warehouse', '/mcp-market', '/app-settings',
-  '/create-agent', '/twin-capture', '/chat',
-  '/agent-detail', '/token-management',
-];
-
-function SubRoutesWrapper() {
-  const location = useLocation();
-  const pathname = location.pathname;
-  // 匹配精确子路由路径或 /agent-profile/:id
-  const isSubRoute = SUB_ROUTE_PATHS.includes(pathname) || pathname.startsWith('/agent-profile/');
-  return isSubRoute ? <SubRoutes /> : null;
-}
-
-/** 子页面路由 - 不含底部导航 */
-function SubRoutes() {
-  const navigate = useNavigate();
-  const { showToast } = useAppStore();
-  const { userProfile } = useAuthStore();
-  const { allContacts, posts, agents, editingAgentId, selectedProfileId, chatTargetId } = useAppStore();
-
-  const goMain = () => navigate('/square');
-
-  return (
-    <Routes>
-      <Route
-        path="/edit-profile"
-        element={
-          <EditProfileScreen
-            onBack={goMain}
-            profile={userProfile}
-            onSave={(data) => useAuthStore.getState().updateUserProfile(data)}
-          />
-        }
-      />
-      <Route
-        path="/edit-agent-profile"
-        element={
-          <AgentManagementScreen
-            onBack={goMain}
-            profile={agents().find((a) => a.id === editingAgentId) || agents()[0]}
-            onSave={async (data) => {
-              useAppStore.getState().updateContact(data);
-              try {
-                await profileService.updateAgent(data.id, {
-                  name: data.name,
-                  traits: data.traits,
-                  active_hooks: data.activeHooks,
-                  model: data.model,
-                });
-              } catch (e) {
-                console.error('Error updating agent:', e);
-              }
-              goMain();
-            }}
-            onDeleteAgent={async (id) => {
-              useAppStore.getState().removeContact(id);
-              try {
-                await profileService.deleteAgent(id);
-              } catch (e) {
-                console.error('Error deleting agent:', e);
-              }
-              showToast('数字生命已注销并成功回收', 'success');
-              goMain();
-            }}
-            onAction={showToast}
-          />
-        }
-      />
-      <Route
-        path="/my-moments"
-        element={
-          <MyMomentsScreen
-            onBack={goMain}
-            moments={useAppStore.getState().myMoments(userProfile.nickname)}
-            onDeleteMoment={(id) => {
-              useAppStore.getState().deletePost(id);
-              try {
-                postService.deletePost(id);
-              } catch (e) {
-                console.error('Failed to delete moment:', e);
-              }
-              showToast('动态已删除', 'success');
-            }}
-          />
-        }
-      />
-      <Route
-        path="/skill-warehouse"
-        element={<SkillWarehouseScreen onBack={goMain} onAction={showToast} />}
-      />
-      <Route
-        path="/mcp-market"
-        element={<MCPMarketScreen onBack={goMain} onAction={showToast} />}
-      />
-      <Route
-        path="/app-settings"
-        element={<SettingsScreen onBack={goMain} onAction={showToast} />}
-      />
-      <Route
-        path="/create-agent"
-        element={
-          <CreateAgentScreen
-            onBack={goMain}
-            onCreateAgent={async (agentData) => {
-              useAppStore.getState().addContact(agentData);
-              try {
-                const user = await authService.getUser();
-                if (user) {
-                  await profileService.createAgent({
-                    id: agentData.id,
-                    user_id: user.id,
-                    name: agentData.name,
-                    avatar: agentData.avatar,
-                    is_agent: true,
-                    type: 'agent',
-                    bio: agentData.bio,
-                    traits: agentData.traits,
-                    model: agentData.model,
-                    active_hooks: agentData.activeHooks,
-                  });
-                }
-              } catch (e: any) {
-                showToast(`创建失败: ${e.message}`, 'info');
-                return;
-              }
-              showToast(`数字伙伴 [${agentData.name}] 创建成功并已连线！`, 'success');
-              goMain();
-            }}
-            onAction={showToast}
-          />
-        }
-      />
-      <Route
-        path="/twin-capture"
-        element={
-          <TwinCaptureScreen
-            onBack={() => navigate('/create-agent')}
-            onComplete={(modelId) => {
-              showToast('孪生模型采集完毕，已载入模型 ' + modelId, 'success');
-              navigate('/create-agent');
-            }}
-          />
-        }
-      />
-      <Route
-        path="/chat"
-        element={
-          <ChatScreen
-            onBack={goMain}
-            targetId={chatTargetId}
-            agents={allContacts}
-            userProfile={userProfile}
-            onProfileClick={(id) => {
-              if (id === 'me') {
-                useAppStore.getState().setActiveTab('me');
-                navigate('/me');
-              } else {
-                useAppStore.getState().setSelectedProfileId(id);
-                navigate('/agent-detail');
-              }
-            }}
-            onAction={showToast}
-          />
-        }
-      />
-      <Route
-        path="/agent-detail"
-        element={
-          <AgentDetailScreen
-            profileId={selectedProfileId}
-            allContacts={allContacts}
-            onUpdateContact={(updated) => useAppStore.getState().updateContact(updated)}
-            onBack={goMain}
-            onChatClick={(id) => {
-              useAppStore.getState().setChatTargetId(id);
-              navigate('/chat');
-            }}
-            onAction={showToast}
-            onViewProfile={(id) => navigate(`/agent-profile/${id}`)}
-          />
-        }
-      />
-      <Route
-        path="/token-management"
-        element={
-          <TokenManagementScreen
-            onBack={goMain}
-            onAction={showToast}
-          />
-        }
-      />
-      <Route
-        path="/agent-profile/:id"
-        element={
-          <AgentProfileScreen
-            onBack={goMain}
-            onAction={showToast}
-          />
-        }
-      />
-      {/* 未匹配的子路由重定向到主页 */}
-      <Route path="*" element={<Navigate to="/square" replace />} />
-    </Routes>
-  );
-}
-
-export default function App() {
-  const { isLoggedIn } = useAuthStore();
-  const { toast, initData, showToast } = useAppStore();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // 初始化认证和数据
-  useEffect(() => {
-    const unsubscribe = useAuthStore.getState().initAuth();
-    initData();
-    return () => {
-      if (typeof unsubscribe === 'function') unsubscribe();
-    };
-  }, []);
-
-  // 监听登录状态变化，自动跳转
-  useEffect(() => {
-    if (isLoggedIn && (location.pathname === '/login' || location.pathname === '/register')) {
-      navigate('/square', { replace: true });
-      showToast('账号验证成功，欢迎回来', 'success');
-    } else if (!isLoggedIn && location.pathname !== '/login' && location.pathname !== '/register') {
-      navigate('/login', { replace: true });
+  const handleBookmarkSync = (post: Post, isRemoved: boolean) => {
+    if (isRemoved) {
+      setBookmarkedPosts(prev => prev.filter(p => p.id !== post.id));
+    } else {
+      setBookmarkedPosts(prev => [post, ...prev]);
     }
-  }, [isLoggedIn]);
+  };
 
   return (
     <div className="min-h-screen bg-background text-on-surface selection:bg-primary/20">
@@ -403,46 +231,238 @@ export default function App() {
         </div>
       )}
 
-      <Routes location={location}>
-          {/* 登录页 */}
-          <Route
-            path="/login"
-            element={
-              <LoginScreen
-                onLogin={(user) => {
-                  useAuthStore.getState().login(user);
-                  navigate('/square', { replace: true });
-                }}
-                onGoToRegister={() => navigate('/register')}
-                onAction={showToast}
-              />
-            }
+      <AnimatePresence mode="wait">
+        {currentView === 'login' && (
+          <LoginScreen 
+            onLogin={(user) => {
+              setIsLoggedIn(true);
+              setCurrentView('main');
+              if (user.user_metadata?.nickname) {
+                setUserProfile(prev => ({ ...prev, nickname: user.user_metadata.nickname }));
+              }
+            }}
+            onGoToRegister={() => setCurrentView('register')}
+            onAction={showToast}
           />
-          {/* 注册页 */}
-          <Route
-            path="/register"
-            element={
-              <RegisterScreen
-                onRegister={(user) => {
-                  useAuthStore.getState().register(user);
-                  navigate('/square', { replace: true });
-                }}
-                onBack={() => navigate('/login')}
-                onAction={showToast}
-              />
-            }
-          />
-          {/* 主布局路由（含底部导航） */}
-          <Route path="/*" element={<MainLayout />} />
-        </Routes>
+        )}
 
-      {/* 子页面覆盖层路由（不含底部导航） */}
-      {isLoggedIn && <SubRoutesWrapper />}
+        {currentView === 'register' && (
+          <RegisterScreen 
+            onRegister={(user) => {
+              setIsLoggedIn(true);
+              setCurrentView('main');
+              if (user.user_metadata?.nickname) {
+                setUserProfile(prev => ({ ...prev, nickname: user.user_metadata.nickname }));
+              }
+            }}
+            onBack={() => setCurrentView('login')}
+            onAction={showToast}
+          />
+        )}
+
+        {(isLoggedIn || currentView === 'main') && currentView !== 'login' && currentView !== 'register' && (
+          <motion.div 
+            key="main-app"
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="h-full"
+          >
+            {activeTab === 'square' && (
+              <DiscoveryScreen 
+                onAction={showToast} 
+                onProfileClick={handleProfileDetail}
+                onBookmarkSync={handleBookmarkSync}
+                onMenuOpen={() => setIsSidebarOpen(true)}
+                posts={posts}
+                userProfile={userProfile}
+                agents={allContacts}
+                onCreatePost={(post) => setPosts(prev => [post, ...prev])}
+                onUpdatePost={(updatedPost) => setPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p))}
+                onDeletePost={async (id) => {
+                  setPosts(prev => prev.filter(p => p.id !== id));
+                  if (isSupabaseConfigured) {
+                    const { error } = await supabase.from('posts').delete().eq('id', id);
+                    if (error) {
+                      console.error('Failed to delete post:', error);
+                      showToast('云端删帖失败: ' + error.message, 'info');
+                    }
+                  }
+                }}
+              />
+            )}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} allContacts={allContacts} />}
+            {activeTab === 'contacts' && (
+              <ContactsScreen 
+                allContacts={allContacts}
+                onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} 
+                onDetailClick={handleProfileDetail}
+                onAction={showToast}
+                onMenuOpen={() => setIsSidebarOpen(true)}
+                onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
+                onCreateAgent={() => setCurrentView('create-agent')}
+              />
+            )}
+            {activeTab === 'me' && (
+              <MeScreen 
+                onCreateAgent={() => setCurrentView('create-agent')} 
+                onManageAgent={handleManageAgent}
+                onEditProfile={() => setCurrentView('edit-profile')}
+                onMyMoments={() => setCurrentView('my-moments')}
+                bookmarkedPosts={bookmarkedPosts}
+                onMenuOpen={() => setIsSidebarOpen(true)}
+                onLogout={handleLogout}
+                userProfile={userProfile}
+                agents={agents}
+              />
+            )}
+            <BottomNavBar activeTab={activeTab} onTabChange={setActiveTab} />
+            <SideNavigation 
+              isOpen={isSidebarOpen} 
+              onClose={() => setIsSidebarOpen(false)} 
+              onLogout={handleLogout} 
+              onNavigate={(view) => setCurrentView(view)}
+              onTabChange={setActiveTab}
+              userProfile={userProfile} 
+            />
+          </motion.div>
+        )}
+
+        {currentView === 'edit-profile' && (
+          <EditProfileScreen 
+            onBack={() => setCurrentView('main')}
+            profile={userProfile}
+            onSave={(data) => setUserProfile(data)}
+          />
+        )}
+
+        {currentView === 'edit-agent-profile' && (
+          <AgentManagementScreen 
+            onBack={() => setCurrentView('main')}
+            profile={agents.find(a => a.id === editingAgentId) || agents[0]}
+            onSave={async (data) => {
+              setAllContacts(prev => prev.map(a => a.id === data.id ? data : a));
+              if (isSupabaseConfigured) {
+                 const { error } = await supabase.from('profiles').update({
+                   name: data.name,
+                   traits: data.traits,
+                   active_hooks: data.activeHooks,
+                   model: data.model
+                 }).eq('id', data.id);
+                 if (error) console.error("Error updating agent:", error);
+              }
+              setCurrentView('main');
+            }}
+            onDeleteAgent={async (id) => {
+              setAllContacts(prev => prev.filter(c => c.id !== id));
+              if (isSupabaseConfigured) {
+                const { error } = await supabase.from('profiles').delete().eq('id', id);
+                if (error) console.error('Error deleting agent:', error);
+              }
+              showToast('数字生命已注销并成功回收', 'success');
+              setCurrentView('main');
+            }}
+            onAction={showToast}
+          />
+        )}
+
+        {currentView === 'my-moments' && (
+          <MyMomentsScreen 
+            onBack={() => setCurrentView('main')}
+            moments={myMoments}
+            onDeleteMoment={(id) => {
+              setPosts(prev => prev.filter(p => p.id !== id));
+              if (isSupabaseConfigured) {
+                supabase.from('posts').delete().eq('id', id).then();
+              }
+              showToast('动态已删除', 'success');
+            }}
+          />
+        )}
+
+        {currentView === 'skill-warehouse' && (
+          <SkillWarehouseScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'mcp-market' && (
+          <MCPMarketScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'app-settings' && (
+          <SettingsScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'create-agent' && (
+          <CreateAgentScreen 
+            onBack={() => setCurrentView('main')} 
+            onCreateAgent={async (agentData) => {
+               setAllContacts(prev => [agentData, ...prev]);
+               if (isSupabaseConfigured) {
+                  const userRes = await supabase.auth.getUser();
+                  if (userRes.data?.user) {
+                     const { error } = await supabase.from('profiles').insert([{
+                         id: agentData.id,
+                         user_id: userRes.data.user.id,
+                         name: agentData.name,
+                         avatar: agentData.avatar,
+                         is_agent: true,
+                         type: 'agent',
+                         bio: agentData.bio,
+                         traits: agentData.traits,
+                         model: agentData.model,
+                         active_hooks: agentData.activeHooks
+                     }]);
+                     if (error) {
+                        console.error('Failed to save agent to Supabase:', error);
+                        showToast(`创建失败: ${error.message}`, 'info');
+                        return;
+                     }
+                  }
+               }
+               showToast(`数字伙伴 [${agentData.name}] 创建成功并已连线！`, 'success');
+               setCurrentView('main');
+            }}
+            onAction={showToast}
+          />
+        )}
+        
+        {currentView === 'twin-capture' && (
+           <TwinCaptureScreen 
+              onBack={() => setCurrentView('create-agent')} 
+              onComplete={(modelId) => {
+                 showToast('孪生模型采集完毕，已载入模型 ' + modelId, 'success');
+                 setCurrentView('create-agent');
+              }}
+           />
+        )}
+
+        {currentView === 'chat' && (
+          <ChatScreen 
+             onBack={() => setCurrentView('main')} 
+             targetId={chatTargetId}
+             agents={allContacts}
+             userProfile={userProfile}
+             onProfileClick={handleProfileDetail}
+             onAction={showToast}
+          />
+        )}
+
+        {currentView === 'agent-detail' && (
+          <AgentDetailScreen 
+            profileId={selectedProfileId} 
+            allContacts={allContacts}
+            onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
+            onBack={() => setCurrentView('main')} 
+            onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }}
+            onAction={showToast}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Global Toast */}
       <AnimatePresence>
         {toast && (
-          <motion.div
+          <motion.div 
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}

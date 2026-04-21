@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 import { TwinCaptureScreen } from './TwinCapture/TwinCaptureScreen';
 
-export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact, onAction, onViewProfile }: {
-  profileId: string | null;
+export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact, onAction }: { 
+  profileId: string | null; 
   onBack: () => void;
   onChatClick: (id: string) => void;
   allContacts: any[];
   onUpdateContact: (contact: any) => void;
   onAction?: (msg: string, type?: 'success' | 'info' | 'error') => void;
-  onViewProfile?: (id: string) => void;
 }) => {
   const profile = allContacts.find(p => p.id === profileId) || allContacts[0];
   const isAgent = profile.type !== 'human';
@@ -174,15 +173,6 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
           <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
             <Bolt size={24} />
           </button>
-          {isAgent && onViewProfile && (
-            <button
-              onClick={() => onViewProfile(profile.id)}
-              className="w-14 h-14 shrink-0 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center text-primary active:scale-90 transition-all hover:bg-primary/20"
-              title="查看独立主页"
-            >
-              <ExternalLink size={20} />
-            </button>
-          )}
         </div>
       </footer>
     </motion.div>
