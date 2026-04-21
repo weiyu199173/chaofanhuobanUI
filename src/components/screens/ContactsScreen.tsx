@@ -3,13 +3,14 @@ import { Menu, Plus, UserCog, Search, PlusCircle, ChevronRight, Verified, Share,
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton, TiltedCard } from '../Common';
 
-export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen, allContacts, onUpdateContact }: { 
+export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpen, allContacts, onUpdateContact, onCreateAgent }: { 
   onChatClick: (id: string) => void,
   onDetailClick: (id: string) => void,
   onAction: (msg: string) => void,
   onMenuOpen: () => void,
   allContacts: any[],
-  onUpdateContact: (contact: any) => void
+  onUpdateContact: (contact: any) => void,
+  onCreateAgent?: () => void
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
@@ -40,7 +41,7 @@ export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpe
         </div>
         <div className="flex items-center gap-4 text-primary">
           <LaserButton className="p-2 rounded-full"><UserCog size={22} /></LaserButton>
-          <LaserButton className="p-2 rounded-full"><Plus size={22} /></LaserButton>
+          <LaserButton onClick={onCreateAgent} className="p-2 rounded-full"><Plus size={22} /></LaserButton>
         </div>
       </header>
 

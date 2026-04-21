@@ -262,6 +262,7 @@ export default function App() {
                 onAction={showToast}
                 onMenuOpen={() => setIsSidebarOpen(true)}
                 onUpdateContact={(updated) => setAllContacts(prev => prev.map(c => c.id === updated.id ? updated : c))}
+                onCreateAgent={() => setCurrentView('create-agent')}
               />
             )}
             {activeTab === 'me' && (
@@ -337,7 +338,6 @@ export default function App() {
         {currentView === 'create-agent' && (
           <CreateAgentScreen 
             onBack={() => setCurrentView('main')} 
-            onStartTwinCapture={() => setCurrentView('twin-capture')} 
             onCreateAgent={(agentData) => {
                setAllContacts(prev => [agentData, ...prev]);
                showToast(`数字伙伴 [${agentData.name}] 创建成功！`, 'success');

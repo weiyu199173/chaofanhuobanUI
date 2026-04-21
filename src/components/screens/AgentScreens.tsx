@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ArrowLeft, Info, Heart, Brain, Bolt, ChevronDown, Database, Verified, Share, MoreVertical, MessageCircle, Plus, Camera, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import { TwinCaptureScreen } from './TwinCapture/TwinCaptureScreen';
+
 export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts, onUpdateContact, onAction }: { 
   profileId: string | null; 
   onBack: () => void;
@@ -177,12 +179,13 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
   );
 };
 
-export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, onAction }: { onBack: () => void, onStartTwinCapture: () => void, onCreateAgent: (agent: any) => void, onAction: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
+export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack: () => void, onCreateAgent: (agent: any) => void, onAction: (msg: string, type?: 'success' | 'error' | 'info') => void }) => {
   const [name, setName] = useState('');
   const [interests, setInterests] = useState('');
   const [activeHooks, setActiveHooks] = useState<string[]>([]);
   const [traits, setTraits] = useState<string[]>(['温柔感性']);
   const [twinModel, setTwinModel] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const toggleHook = (hook: string) => {
     setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
@@ -216,6 +219,7 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, o
   };
 
   return (
+    <>
     <motion.div 
       initial={{ y: 50, opacity: 0 }} 
       animate={{ y: 0, opacity: 1 }}
@@ -242,8 +246,8 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, o
 
         <section className="mb-16">
           <div 
-            onClick={onStartTwinCapture}
-            className="group relative p-8 rounded-3xl bg-surface-container-low border border-primary/30 hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between shadow-2xl shadow-primary/5"
+            onClick={() => setIsCapturing(true)}
+            className={`group relative p-8 rounded-3xl bg-surface-container-low border ${twinModel ? 'border-primary' : 'border-primary/30'} hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between shadow-2xl shadow-primary/5`}
           >
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-30 transition-opacity translate-x-1/4 -translate-y-1/4">
               <Camera size={120} className="fill-current" />
@@ -253,12 +257,16 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, o
                  <Heart size={32} />
               </div>
               <div>
-                <h3 className="text-2xl font-headline font-bold mb-1">启动 TwinCapture 采集</h3>
-                <p className="text-outline text-sm font-light">基于 Gaussian Splatting / NeRF 生成您的全息数字孪生实体</p>
+                <h3 className="text-2xl font-headline font-bold mb-1">
+                  {twinModel ? 'TwinCapture 已就绪' : '启动 TwinCapture 采集'}
+                </h3>
+                <p className="text-outline text-sm font-light">
+                  {twinModel ? `基于模型ID ${twinModel} 生成的数字孪生实体` : '基于 Gaussian Splatting / NeRF 生成您的全息数字孪生实体'}
+                </p>
               </div>
             </div>
-            <div className="relative z-10 w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
-              <ArrowRight size={20} />
+            <div className={`relative z-10 w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center transition-colors ${twinModel ? 'bg-primary text-on-primary' : 'text-primary group-hover:bg-primary group-hover:text-on-primary'}`}>
+              {twinModel ? <Verified size={20} /> : <ArrowRight size={20} />}
             </div>
           </div>
         </section>
@@ -395,5 +403,17 @@ export const CreateAgentScreen = ({ onBack, onStartTwinCapture, onCreateAgent, o
         </div>
       </footer>
     </motion.div>
+
+    {isCapturing && (
+      <TwinCaptureScreen 
+         onBack={() => setIsCapturing(false)} 
+         onComplete={(modelId) => {
+            setTwinModel(modelId);
+            setIsCapturing(false);
+            onAction(`孪生模型采集完毕，已载入模型 ${modelId}`, 'success');
+         }}
+      />
+    )}
+    </>
   );
 };
