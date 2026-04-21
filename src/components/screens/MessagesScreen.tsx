@@ -68,7 +68,7 @@ export const MessagesScreen = ({ onChatClick, onMenuOpen, allContacts }: { onCha
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
-              placeholder="搜索灵动消息、同位体或同步组..." 
+              placeholder="搜索消息或联系人..." 
               type="text"
             />
           </div>

@@ -80,7 +80,7 @@ export const MeScreen = ({
                     </div>
                     <div>
                       <p className="text-[9px] uppercase tracking-widest text-outline font-bold">合作伙伴</p>
-                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">{agents.length.toString().padStart(2, '0')}</p>
+                      <p className="text-xl font-headline font-bold text-on-surface leading-tight">{agents.length}</p>
                     </div>
                   </div>
                   <LaserButton onClick={onEditProfile} className="bg-on-surface text-background px-8 py-3 rounded-full font-bold text-sm tracking-widest uppercase active:scale-95 transition-all shadow-lg hover:shadow-white/5">

@@ -53,7 +53,7 @@ export const ContactsScreen = ({ onChatClick, onDetailClick, onAction, onMenuOpe
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 bg-transparent border-none focus:ring-0 text-xs placeholder:text-outline/40" 
-              placeholder="在全网范围内进行同位体检索..." 
+              placeholder="搜索联系人..." 
               type="text"
             />
           </div>
