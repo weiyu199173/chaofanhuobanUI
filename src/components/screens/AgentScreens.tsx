@@ -201,7 +201,7 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
       return;
     }
     const newAgent = {
-      id: 'a' + Date.now(),
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'a' + Date.now(),
       name,
       avatar: 'https://picsum.photos/seed/' + name + '/100/100',
       isAgent: true,
@@ -415,5 +415,123 @@ export const CreateAgentScreen = ({ onBack, onCreateAgent, onAction }: { onBack:
       />
     )}
     </>
+  );
+};
+
+export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, onAction }: {
+  onBack: () => void;
+  profile: any;
+  onSave: (data: any) => void;
+  onDeleteAgent: (id: string) => void;
+  onAction: (msg: string, type?: 'success' | 'error' | 'info') => void;
+}) => {
+  const [name, setName] = useState(profile.name);
+  const [traits, setTraits] = useState<string[]>(profile.traits || []);
+  const [activeHooks, setActiveHooks] = useState<string[]>(profile.activeHooks || []);
+  const [twinModel] = useState<string | null>(profile.model || null);
+
+  const toggleHook = (hook: string) => setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
+  const toggleTrait = (trait: string) => setTraits(prev => prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]);
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }} 
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="fixed inset-0 z-[110] bg-background overflow-y-auto custom-scrollbar"
+    >
+      <nav className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-6 h-16 bg-background/80 backdrop-blur-xl border-b border-primary/20">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-full hover:bg-surface-container-high transition-all text-primary">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="font-headline tracking-[0.2em] text-xl font-bold uppercase text-primary">代理终端管理接口</h1>
+        </div>
+        <button 
+          onClick={() => {
+            onSave({ ...profile, name, traits, activeHooks });
+            onAction('数字代理设定已更新并同步。', 'success');
+          }} 
+          className="text-background bg-primary font-bold tracking-widest text-xs uppercase px-6 py-2 rounded-full hover:opacity-80 transition-all font-headline"
+        >
+          保存同步
+        </button>
+      </nav>
+
+      <main className="pt-24 pb-48 px-6 max-w-2xl mx-auto space-y-12">
+        <header className="flex flex-col items-center">
+            <div className="relative mb-6">
+                <div className="absolute -inset-6 bg-primary/20 blur-3xl rounded-full" />
+                <img src={profile.avatar} className="w-32 h-32 rounded-3xl object-cover border-2 shadow-2xl relative border-primary" />
+                <div className="absolute -right-2 -bottom-2 bg-background p-2 rounded-xl border border-primary text-primary">
+                  <Database size={20} />
+                </div>
+            </div>
+            <p className="text-[10px] text-primary uppercase tracking-[0.3em] font-headline">UUID: {profile.id}</p>
+        </header>
+
+        <section className="space-y-4 bg-surface-container-low p-6 rounded-3xl border border-primary/10 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-8 opacity-5">
+               <Bolt size={100} />
+             </div>
+             <label className="block text-[10px] uppercase tracking-widest text-primary mb-2 font-bold font-headline">覆盖代号 (Override Callsign)</label>
+             <input 
+               value={name}
+               onChange={(e) => setName(e.target.value)}
+               className="w-full bg-transparent border-0 border-b-2 border-primary/30 py-2 text-2xl font-headline font-bold text-on-surface focus:ring-0 focus:border-primary transition-all" 
+               type="text"
+             />
+        </section>
+
+        <section className="space-y-6">
+           <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">底层性格向量集 (Traits Matrix)</h3>
+           <div className="flex flex-wrap gap-3">
+             {['温柔感性', '极客冷静', '傲娇毒舌', '哲学思辨', '元气满点', '黑暗深邃'].map(trait => (
+               <button 
+                 key={trait}
+                 onClick={() => toggleTrait(trait)}
+                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all font-headline ${traits.includes(trait) ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-container-high text-outline hover:bg-surface-container-highest'}`}
+               >
+                 {trait}
+               </button>
+             ))}
+           </div>
+        </section>
+
+        <section className="space-y-6">
+          <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">外接感知能力 (External Hooks)</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             {[
+               { id: 'hook-vision', title: 'Open Claw (视觉流)', desc: '允许Agent查看您发送的图片和屏幕流' },
+               { id: 'hook-data', title: 'Hermes (数据代理)', desc: '深度授权访问通讯录和公共状态树' }
+             ].map(hook => (
+               <div 
+                 key={hook.id}
+                 onClick={() => toggleHook(hook.id)}
+                 className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${activeHooks.includes(hook.id) ? 'border-primary bg-primary/5' : 'border-surface-container-highest hover:border-primary/30'}`}
+               >
+                 <div className="flex justify-between items-center mb-2">
+                   <h4 className="font-bold text-sm tracking-wider font-headline">{hook.title}</h4>
+                   <div className={`w-4 h-4 rounded-full border-2 ${activeHooks.includes(hook.id) ? 'border-primary bg-primary' : 'border-outline'}`} />
+                 </div>
+                 <p className="text-xs text-outline">{hook.desc}</p>
+               </div>
+             ))}
+          </div>
+        </section>
+
+        <section className="pt-12">
+            <button 
+                onClick={() => onDeleteAgent(profile.id)} 
+                className="w-full py-5 rounded-2xl bg-error/10 text-error flex items-center justify-center gap-3 border border-error/20 hover:bg-error/20 hover:border-error transition-all font-bold tracking-[0.2em] text-sm uppercase group"
+            >
+                <div className="p-2 rounded-full bg-error text-white group-hover:scale-110 transition-transform">
+                   <MoreVertical size={16} /> 
+                </div>
+                物理销毁当前生命实体 (IRREVERSIBLE SECURE WIPE)
+            </button>
+        </section>
+      </main>
+    </motion.div>
   );
 };

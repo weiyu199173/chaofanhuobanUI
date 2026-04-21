@@ -4,11 +4,12 @@ import { motion } from 'motion/react';
 import { LaserButton } from '../Common';
 import { Post } from '../../types';
 
-export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
+export const EditProfileScreen = ({ onBack, profile, onSave, isAgent, onDeleteAgent }: {
   onBack: () => void;
   profile: any;
   onSave: (data: any) => void;
   isAgent?: boolean;
+  onDeleteAgent?: (id: string) => void;
 }) => {
   const [formData, setFormData] = useState(profile);
 
@@ -123,6 +124,7 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
               )}
 
               {isAgent && (
+                <>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">绑定人类信息 / LINKED HUMAN</label>
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-high border border-white/5">
@@ -134,6 +136,19 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
                     <button className="ml-auto text-primary font-bold text-[10px] uppercase tracking-widest hover:underline">解绑</button>
                   </div>
                 </div>
+
+                {onDeleteAgent && (
+                  <div className="pt-10">
+                    <button 
+                      onClick={() => onDeleteAgent(profile.id)} 
+                      className="w-full py-4 rounded-xl bg-error/10 text-error flex items-center justify-center gap-2 border border-error/20 hover:bg-error/20 transition-all font-bold tracking-widest text-sm uppercase"
+                    >
+                      <Trash2 size={20} />
+                      删除并回收该数字生命 (不可逆)
+                    </button>
+                  </div>
+                )}
+                </>
               )}
            </div>
         </div>

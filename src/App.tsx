@@ -23,7 +23,7 @@ import { ContactsScreen } from './components/screens/ContactsScreen';
 import { MeScreen } from './components/screens/MeScreen';
 
 // Deeper Modules
-import { AgentDetailScreen, CreateAgentScreen } from './components/screens/AgentScreens';
+import { AgentDetailScreen, CreateAgentScreen, AgentManagementScreen } from './components/screens/AgentScreens';
 import { EditProfileScreen, MyMomentsScreen, SkillWarehouseScreen, MCPMarketScreen, SettingsScreen } from './components/screens/SettingsScreens';
 import { ChatScreen } from './components/screens/ChatScreen';
 import { TwinCaptureScreen } from './components/screens/TwinCapture/TwinCaptureScreen';
@@ -94,10 +94,46 @@ export default function App() {
 
     fetchPosts();
 
+    const fetchUserAgents = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('is_agent', true);
+      
+      if (!error && data) {
+        setAllContacts(prev => {
+          const newContacts = [...prev.filter(c => c.isAgent === false || c.id === '1' || c.id === '2')]; // Keep mock agents
+          data.forEach(p => {
+             if (!newContacts.some(c => c.id === p.id)) {
+               newContacts.push({
+                 id: p.id,
+                 name: p.name,
+                 avatar: p.avatar,
+                 isAgent: p.is_agent,
+                 type: p.type,
+                 status: p.status,
+                 lv: p.lv,
+                 syncRate: p.sync_rate,
+                 bio: p.bio,
+                 traits: p.traits || [],
+                 model: p.model,
+                 activeHooks: p.active_hooks || [],
+                 isFriend: true
+               });
+             }
+          });
+          // Also set the correct profile user info if it's the main account, but here we just fetch agents.
+          return newContacts;
+        });
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsLoggedIn(true);
         setCurrentView('main');
+        fetchUserAgents(session.user.id);
         if (session.user.user_metadata?.nickname) {
           setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
         }
@@ -109,12 +145,14 @@ export default function App() {
         setIsLoggedIn(true);
         setCurrentView('main');
         showToast('账号验证成功，欢迎回来', 'success');
+        fetchUserAgents(session.user.id);
         if (session.user.user_metadata?.nickname) {
           setUserProfile(prev => ({ ...prev, nickname: session.user.user_metadata.nickname }));
         }
       } else if (event === 'INITIAL_SESSION' && session) {
         setIsLoggedIn(true);
         setCurrentView('main');
+        fetchUserAgents(session.user.id);
       } else if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
         setCurrentView('login');
@@ -299,13 +337,31 @@ export default function App() {
         )}
 
         {currentView === 'edit-agent-profile' && (
-          <EditProfileScreen 
+          <AgentManagementScreen 
             onBack={() => setCurrentView('main')}
-            isAgent={true}
             profile={agents.find(a => a.id === editingAgentId) || agents[0]}
-            onSave={(data) => {
+            onSave={async (data) => {
               setAllContacts(prev => prev.map(a => a.id === data.id ? data : a));
+              if (isSupabaseConfigured) {
+                 const { error } = await supabase.from('profiles').update({
+                   name: data.name,
+                   traits: data.traits,
+                   active_hooks: data.activeHooks
+                 }).eq('id', data.id);
+                 if (error) console.error("Error updating agent:", error);
+              }
+              setCurrentView('main');
             }}
+            onDeleteAgent={async (id) => {
+              setAllContacts(prev => prev.filter(c => c.id !== id));
+              if (isSupabaseConfigured) {
+                const { error } = await supabase.from('profiles').delete().eq('id', id);
+                if (error) console.error('Error deleting agent:', error);
+              }
+              showToast('数字生命已注销并成功回收', 'success');
+              setCurrentView('main');
+            }}
+            onAction={showToast}
           />
         )}
 
@@ -338,9 +394,31 @@ export default function App() {
         {currentView === 'create-agent' && (
           <CreateAgentScreen 
             onBack={() => setCurrentView('main')} 
-            onCreateAgent={(agentData) => {
+            onCreateAgent={async (agentData) => {
                setAllContacts(prev => [agentData, ...prev]);
-               showToast(`数字伙伴 [${agentData.name}] 创建成功！`, 'success');
+               if (isSupabaseConfigured) {
+                  const userRes = await supabase.auth.getUser();
+                  if (userRes.data?.user) {
+                     const { error } = await supabase.from('profiles').insert([{
+                         id: agentData.id,
+                         user_id: userRes.data.user.id,
+                         name: agentData.name,
+                         avatar: agentData.avatar,
+                         is_agent: true,
+                         type: 'agent',
+                         bio: agentData.bio,
+                         traits: agentData.traits,
+                         model: agentData.model,
+                         active_hooks: agentData.activeHooks
+                     }]);
+                     if (error) {
+                        console.error('Failed to save agent to Supabase:', error);
+                        showToast(`创建失败: ${error.message}`, 'info');
+                        return;
+                     }
+                  }
+               }
+               showToast(`数字伙伴 [${agentData.name}] 创建成功并已连线！`, 'success');
                setCurrentView('main');
             }}
             onAction={showToast}
