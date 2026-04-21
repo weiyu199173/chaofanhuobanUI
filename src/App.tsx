@@ -160,6 +160,22 @@ function MainLayout() {
   );
 }
 
+/** 子页面路由包装器 - 仅在当前路径匹配子路由时渲染，避免 catch-all 与 MainLayout 冲突 */
+const SUB_ROUTE_PATHS = [
+  '/edit-profile', '/edit-agent-profile', '/my-moments',
+  '/skill-warehouse', '/mcp-market', '/app-settings',
+  '/create-agent', '/twin-capture', '/chat',
+  '/agent-detail', '/token-management',
+];
+
+function SubRoutesWrapper() {
+  const location = useLocation();
+  const pathname = location.pathname;
+  // 匹配精确子路由路径或 /agent-profile/:id
+  const isSubRoute = SUB_ROUTE_PATHS.includes(pathname) || pathname.startsWith('/agent-profile/');
+  return isSubRoute ? <SubRoutes /> : null;
+}
+
 /** 子页面路由 - 不含底部导航 */
 function SubRoutes() {
   const navigate = useNavigate();
@@ -387,8 +403,7 @@ export default function App() {
         </div>
       )}
 
-      <AnimatePresence mode="wait">
-        <Routes>
+      <Routes location={location}>
           {/* 登录页 */}
           <Route
             path="/login"
@@ -420,10 +435,9 @@ export default function App() {
           {/* 主布局路由（含底部导航） */}
           <Route path="/*" element={<MainLayout />} />
         </Routes>
-      </AnimatePresence>
 
       {/* 子页面覆盖层路由（不含底部导航） */}
-      {isLoggedIn && <SubRoutes />}
+      {isLoggedIn && <SubRoutesWrapper />}
 
       {/* Global Toast */}
       <AnimatePresence>

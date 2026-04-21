@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { authService } from '../services/api';
 
 interface UserProfile {
@@ -40,78 +41,90 @@ const defaultUserProfile: UserProfile = {
   isAgent: false,
 };
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  isLoggedIn: false,
-  userProfile: { ...defaultUserProfile },
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      isLoggedIn: false,
+      userProfile: { ...defaultUserProfile },
 
-  login: (user: any) => {
-    const nickname = user.user_metadata?.nickname;
-    set((state) => ({
-      isLoggedIn: true,
-      userProfile: nickname
-        ? { ...state.userProfile, nickname }
-        : state.userProfile,
-    }));
-  },
-
-  logout: async () => {
-    await authService.logout();
-    set({ isLoggedIn: false, userProfile: { ...defaultUserProfile } });
-  },
-
-  register: (user: any) => {
-    const nickname = user.user_metadata?.nickname;
-    set((state) => ({
-      isLoggedIn: true,
-      userProfile: nickname
-        ? { ...state.userProfile, nickname }
-        : state.userProfile,
-    }));
-  },
-
-  updateUserProfile: (data: Partial<UserProfile>) => {
-    set((state) => ({
-      userProfile: { ...state.userProfile, ...data },
-    }));
-  },
-
-  initAuth: (): (() => void) => {
-    // 检查现有 session
-    authService.getSession().then((session) => {
-      if (session) {
-        const nickname = session.user.user_metadata?.nickname;
+      login: (user: any) => {
+        const nickname = user.user_metadata?.nickname;
         set((state) => ({
           isLoggedIn: true,
           userProfile: nickname
             ? { ...state.userProfile, nickname }
             : state.userProfile,
         }));
-      }
-    });
+      },
 
-    // 监听认证状态变化
-    const { unsubscribe } = authService.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const nickname = session.user.user_metadata?.nickname;
-        set((state) => ({
-          isLoggedIn: true,
-          userProfile: nickname
-            ? { ...state.userProfile, nickname }
-            : state.userProfile,
-        }));
-      } else if (event === 'INITIAL_SESSION' && session) {
-        const nickname = session.user.user_metadata?.nickname;
-        set((state) => ({
-          isLoggedIn: true,
-          userProfile: nickname
-            ? { ...state.userProfile, nickname }
-            : state.userProfile,
-        }));
-      } else if (event === 'SIGNED_OUT') {
+      logout: async () => {
+        await authService.logout();
         set({ isLoggedIn: false, userProfile: { ...defaultUserProfile } });
-      }
-    });
+      },
 
-    return unsubscribe;
-  },
-}));
+      register: (user: any) => {
+        const nickname = user.user_metadata?.nickname;
+        set((state) => ({
+          isLoggedIn: true,
+          userProfile: nickname
+            ? { ...state.userProfile, nickname }
+            : state.userProfile,
+        }));
+      },
+
+      updateUserProfile: (data: Partial<UserProfile>) => {
+        set((state) => ({
+          userProfile: { ...state.userProfile, ...data },
+        }));
+      },
+
+      initAuth: (): (() => void) => {
+        // 检查现有 session
+        authService.getSession().then((session) => {
+          if (session) {
+            const nickname = session.user.user_metadata?.nickname;
+            set((state) => ({
+              isLoggedIn: true,
+              userProfile: nickname
+                ? { ...state.userProfile, nickname }
+                : state.userProfile,
+            }));
+          }
+        });
+
+        // 监听认证状态变化
+        const { unsubscribe } = authService.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            const nickname = session.user.user_metadata?.nickname;
+            set((state) => ({
+              isLoggedIn: true,
+              userProfile: nickname
+                ? { ...state.userProfile, nickname }
+                : state.userProfile,
+            }));
+          } else if (event === 'INITIAL_SESSION' && session) {
+            const nickname = session.user.user_metadata?.nickname;
+            set((state) => ({
+              isLoggedIn: true,
+              userProfile: nickname
+                ? { ...state.userProfile, nickname }
+                : state.userProfile,
+            }));
+          } else if (event === 'SIGNED_OUT') {
+            set({ isLoggedIn: false, userProfile: { ...defaultUserProfile } });
+          }
+        });
+
+        return unsubscribe;
+      },
+    }),
+    {
+      name: 'auth-storage',
+      // 只持久化 isLoggedIn 和 userProfile
+      partialize: (state) => ({
+        isLoggedIn: state.isLoggedIn,
+        userProfile: state.userProfile,
+      }),
+    }
+  )
+);
