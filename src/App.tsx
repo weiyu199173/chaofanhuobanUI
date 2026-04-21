@@ -346,7 +346,8 @@ export default function App() {
                  const { error } = await supabase.from('profiles').update({
                    name: data.name,
                    traits: data.traits,
-                   active_hooks: data.activeHooks
+                   active_hooks: data.activeHooks,
+                   model: data.model
                  }).eq('id', data.id);
                  if (error) console.error("Error updating agent:", error);
               }

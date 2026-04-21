@@ -428,12 +428,14 @@ export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, 
   const [name, setName] = useState(profile.name);
   const [traits, setTraits] = useState<string[]>(profile.traits || []);
   const [activeHooks, setActiveHooks] = useState<string[]>(profile.activeHooks || []);
-  const [twinModel] = useState<string | null>(profile.model || null);
+  const [twinModel, setTwinModel] = useState<string | null>(profile.model || null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const toggleHook = (hook: string) => setActiveHooks(prev => prev.includes(hook) ? prev.filter(h => h !== hook) : [...prev, hook]);
   const toggleTrait = (trait: string) => setTraits(prev => prev.includes(trait) ? prev.filter(t => t !== trait) : [...prev, trait]);
 
   return (
+    <>
     <motion.div 
       initial={{ opacity: 0, scale: 0.95 }} 
       animate={{ opacity: 1, scale: 1 }}
@@ -449,7 +451,7 @@ export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, 
         </div>
         <button 
           onClick={() => {
-            onSave({ ...profile, name, traits, activeHooks });
+            onSave({ ...profile, name, traits, activeHooks, model: twinModel });
             onAction('数字代理设定已更新并同步。', 'success');
           }} 
           className="text-background bg-primary font-bold tracking-widest text-xs uppercase px-6 py-2 rounded-full hover:opacity-80 transition-all font-headline"
@@ -481,6 +483,34 @@ export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, 
                className="w-full bg-transparent border-0 border-b-2 border-primary/30 py-2 text-2xl font-headline font-bold text-on-surface focus:ring-0 focus:border-primary transition-all" 
                type="text"
              />
+        </section>
+
+        <section className="space-y-6">
+           <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold text-outline border-l-2 border-primary pl-2">孪生模型同步 (Twin Model Sync)</h3>
+          <div 
+            onClick={() => setIsCapturing(true)}
+            className={`group relative p-6 rounded-3xl bg-surface-container-low border ${twinModel ? 'border-primary' : 'border-primary/30'} hover:border-primary transition-all cursor-pointer overflow-hidden flex items-center justify-between`}
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity translate-x-1/4 -translate-y-1/4">
+              <Camera size={80} className="fill-current text-primary" />
+            </div>
+            <div className="relative z-10 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-lg">
+                 <Heart size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-headline font-bold mb-1 text-on-surface">
+                  重新采集模型数据
+                </h3>
+                <p className="text-outline text-xs font-light">
+                  {twinModel ? `当前挂载模型: ${twinModel}` : '当前无模型实体数据'}
+                </p>
+              </div>
+            </div>
+            <div className={`relative z-10 w-8 h-8 rounded-full border-2 border-primary flex items-center justify-center transition-colors ${twinModel ? 'bg-primary text-on-primary' : 'text-primary group-hover:bg-primary group-hover:text-on-primary'}`}>
+              {twinModel ? <Verified size={16} /> : <ArrowRight size={16} />}
+            </div>
+          </div>
         </section>
 
         <section className="space-y-6">
@@ -533,5 +563,17 @@ export const AgentManagementScreen = ({ onBack, profile, onSave, onDeleteAgent, 
         </section>
       </main>
     </motion.div>
+
+    {isCapturing && (
+      <TwinCaptureScreen 
+         onBack={() => setIsCapturing(false)} 
+         onComplete={(modelId) => {
+            setTwinModel(modelId);
+            setIsCapturing(false);
+            onAction(`底层网路重排完毕，已成功覆盖数字孪生模型 ${modelId}`, 'success');
+         }}
+      />
+    )}
+    </>
   );
 };
