@@ -8,47 +8,47 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase
+// Supabase 客户端
 const supabase = createClient(
-  process.env.VITE_SUPABASE_URL || '',
-  process.env.VITE_SUPABASE_ANON_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 );
 
-// Import routes
+// 检查 Supabase 配置
+const isSupabaseConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+// 导入路由
 import authRoutes from './routes/auth';
 import postsRoutes from './routes/posts';
 
-// Middleware
+// 中间件
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// 根路由
 app.get('/', (req, res) => {
   res.json({
     name: 'Transcend AI API',
     version: '1.0.0',
     status: 'active',
+    database: isSupabaseConfigured ? 'Supabase 已连接' : 'Supabase 配置不完整',
     documentation: 'https://github.com/yourusername/transcend',
     endpoints: [
-      { path: '/auth/validate', method: 'GET', description: 'Validate token and get twin info' },
-      { path: '/posts', method: 'GET', description: 'Get posts (read permission required)' },
-      { path: '/posts', method: 'POST', description: 'Create post (post permission required, rate limited)' },
+      { path: '/auth/login', method: 'POST', description: '用户登录' },
+      { path: '/auth/register', method: 'POST', description: '用户注册' },
+      { path: '/auth/validate', method: 'GET', description: '验证Token和获取数字孪生信息' },
+      { path: '/posts', method: 'GET', description: '获取帖子' },
+      { path: '/posts', method: 'POST', description: '创建帖子' },
     ],
   });
 });
 
-// Health check
+// 健康检查
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), database: isSupabaseConfigured ? 'connected' : 'not_configured' });
 });
 
-// API routes
+// API 路由
 app.use('/auth', authRoutes);
 app.use('/posts', postsRoutes);
 
@@ -56,6 +56,7 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`✅ Server health: http://localhost:${PORT}/health`);
   console.log(`📡 API Info: http://localhost:${PORT}/`);
+  console.log(`🗄️  Supabase: ${isSupabaseConfigured ? '已配置' : '未配置'}`);
 });
 
 export { app, supabase };
