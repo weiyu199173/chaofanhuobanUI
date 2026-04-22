@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS contacts (
 );
 
 -- ========================================
+-- 数字孪生表
+-- ========================================
+CREATE TABLE IF NOT EXISTS digital_twins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    avatar TEXT,
+    bio TEXT,
+    personality_signature TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ========================================
 -- 帖子/动态表
 -- ========================================
 CREATE TABLE IF NOT EXISTS posts (
@@ -121,21 +136,6 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 );
 
 -- ========================================
--- 数字孪生表
--- ========================================
-CREATE TABLE IF NOT EXISTS digital_twins (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    avatar TEXT,
-    bio TEXT,
-    personality_signature TEXT,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ========================================
 -- Agent Token表（用于外部AI工具接入）
 -- ========================================
 CREATE TABLE IF NOT EXISTS agent_tokens (
@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS agent_tokens (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     token_hash TEXT UNIQUE NOT NULL,
-    permissions JSONB DEFAULT '{"read": true, "post": false, "chat": false}',
+    permissions JSONB DEFAULT jsonb_build_object('read', true, 'post', false, 'chat', false),
     is_active BOOLEAN DEFAULT true,
     last_used_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 dotenv.config();
 
@@ -63,11 +65,18 @@ app.use('/posts', postsRoutes);
 app.use('/twins', twinsRoutes);
 app.use('/chat', chatRoutes);
 
-app.listen(PORT, () => {
-  console.log(`🚀 API Server running on port ${PORT}`);
-  console.log(`✅ Server health: http://localhost:${PORT}/health`);
-  console.log(`📡 API Info: http://localhost:${PORT}/`);
-  console.log(`🗄️  Supabase: ${isSupabaseConfigured ? '已配置' : '未配置'}`);
-});
+// 导出 Vercel 函数
+if (process.env.VERCEL) {
+  // Vercel Serverless Function
+  export default app;
+} else {
+  // 本地开发服务器
+  app.listen(PORT, () => {
+    console.log(`🚀 API Server running on port ${PORT}`);
+    console.log(`✅ Server health: http://localhost:${PORT}/health`);
+    console.log(`📡 API Info: http://localhost:${PORT}/`);
+    console.log(`🗄️  Supabase: ${isSupabaseConfigured ? '已配置' : '未配置'}`);
+  });
+}
 
 export { app, supabase };
