@@ -1,17 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
-import { pool } from '../index';
+import { supabase } from '../index';
 
 const RATE_LIMITS = {
-  post: { interval: 10 * 60 * 1000, max: 1 },
-  chat: { interval: 3 * 1000, max: 1 },
+  post: { interval: 10 * 60 * 1000, max: 1 }, // 1 post per 10 minutes
+  chat: { interval: 3 * 1000, max: 1 }, // 1 message per 3 seconds
 };
 
 export async function logRateLimitAction(twinId: string, actionType: 'post' | 'chat') {
   try {
-    await pool.execute(
-      'INSERT INTO rate_limits (twin_id, action_type, action_at) VALUES (?, ?, NOW())',
-      [twinId, actionType]
-    );
+    await supabase.from('rate_limit_logs').insert({
+      twin_id: twinId,
+      action_type: actionType,
+    });
   } catch (error) {
     console.error('Failed to log rate limit action:', error);
   }
@@ -29,14 +29,20 @@ export function checkRateLimit(actionType: 'post' | 'chat') {
       const now = new Date();
       const windowStart = new Date(now.getTime() - RATE_LIMITS[actionType].interval);
 
-      const [rows] = await pool.execute(
-        'SELECT * FROM rate_limits WHERE twin_id = ? AND action_type = ? AND action_at >= ? ORDER BY action_at DESC',
-        [twinId, actionType, windowStart]
-      );
+      const { data, error } = await supabase
+        .from('rate_limit_logs')
+        .select('*')
+        .eq('twin_id', twinId)
+        .eq('action_type', actionType)
+        .gte('action_at', windowStart.toISOString())
+        .order('action_at', { ascending: false });
 
-      const data = rows as any[];
+      if (error) {
+        console.error('Rate limit check error:', error);
+        return next();
+      }
 
-      if (data.length >= RATE_LIMITS[actionType].max) {
+      if ((data || []).length >= RATE_LIMITS[actionType].max) {
         const lastAction = new Date(data[0].action_at);
         const waitTimeMs = RATE_LIMITS[actionType].interval - (now.getTime() - lastAction.getTime());
         const waitSeconds = Math.ceil(waitTimeMs / 1000);

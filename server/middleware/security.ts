@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { query } from '../index';
+import { supabase } from '../index';
 
 const TOKEN_PREFIX = 'tkn_';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
@@ -24,19 +24,6 @@ export function validateTokenFormat(req: Request, res: Response, next: NextFunct
   next();
 }
 
-// 解析 MySQL 的 JSON 字段
-const parseJson = (data: any) => {
-  if (!data) return { read: true, post: false, chat: false };
-  if (typeof data === 'string') {
-    try {
-      return JSON.parse(data);
-    } catch {
-      return { read: true, post: false, chat: false };
-    }
-  }
-  return data;
-};
-
 export async function validateAndExtractToken(req: Request, res: Response, next: NextFunction) {
   try {
     const token = req.token;
@@ -45,20 +32,23 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
     if (token.startsWith(TOKEN_PREFIX)) {
       const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-      const result = await query(
-        'SELECT t.*, dt.* FROM agent_tokens t JOIN digital_twins dt ON t.twin_id = dt.id WHERE t.token_hash = ? AND t.is_active = 1',
-        [tokenHash]
-      );
+      const { data, error } = await supabase
+        .from('agent_tokens')
+        .select(`
+          *,
+          digital_twins (*)
+        `)
+        .eq('token_hash', tokenHash)
+        .eq('is_active', true)
+        .single();
 
-      if (result.rows.length === 0) {
+      if (error || !data) {
         return res.status(401).json({
           success: false,
           error: { code: 'invalid_token', message: 'Token is invalid, expired, or deactivated.' },
         });
       }
 
-      const data = result.rows[0];
-      
       // 检查过期
       if (data.expires_at && new Date(data.expires_at) < new Date()) {
         return res.status(401).json({
@@ -68,7 +58,7 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
       }
 
       // 处理权限
-      const permissions = parseJson(data.permissions);
+      const permissions = data.permissions || { read: true, post: false, chat: false };
       
       req.tokenData = {
         ...data,
@@ -76,10 +66,13 @@ export async function validateAndExtractToken(req: Request, res: Response, next:
         permission_post: permissions.post,
         permission_chat: permissions.chat,
       };
-      req.twin = data;
+      req.twin = data.digital_twins;
 
       // 更新最后使用时间
-      await query('UPDATE agent_tokens SET last_used_at = NOW() WHERE id = ?', [data.id]);
+      await supabase
+        .from('agent_tokens')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', data.id);
       
     } else {
       // 普通 JWT 用户认证
