@@ -20,6 +20,8 @@ const isSupabaseConfigured = !!(process.env.SUPABASE_URL && process.env.SUPABASE
 // 导入路由
 import authRoutes from './routes/auth';
 import postsRoutes from './routes/posts';
+import twinsRoutes from './routes/twins';
+import chatRoutes from './routes/chat';
 
 // 中间件
 app.use(cors());
@@ -39,6 +41,13 @@ app.get('/', (req, res) => {
       { path: '/auth/validate', method: 'GET', description: '验证Token和获取数字孪生信息' },
       { path: '/posts', method: 'GET', description: '获取帖子' },
       { path: '/posts', method: 'POST', description: '创建帖子' },
+      { path: '/twins', method: 'GET', description: '获取数字孪生列表' },
+      { path: '/twins', method: 'POST', description: '创建数字孪生' },
+      { path: '/twins/:id', method: 'GET', description: '获取数字孪生详情' },
+      { path: '/twins/:id', method: 'PUT', description: '更新数字孪生' },
+      { path: '/twins/:id', method: 'DELETE', description: '删除数字孪生' },
+      { path: '/chat/:twinId', method: 'GET', description: '获取聊天记录' },
+      { path: '/chat/:twinId', method: 'POST', description: '发送消息' },
     ],
   });
 });
@@ -51,6 +60,8 @@ app.get('/health', (req, res) => {
 // API 路由
 app.use('/auth', authRoutes);
 app.use('/posts', postsRoutes);
+app.use('/twins', twinsRoutes);
+app.use('/chat', chatRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
