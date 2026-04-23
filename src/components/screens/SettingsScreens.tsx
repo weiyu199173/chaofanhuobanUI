@@ -1,64 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone, Trash2, Download } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState } from 'react';
+import { ChevronLeft, Camera, Phone, MapPin, QrCode, PlusSquare, MoreVertical, Sparkles, Brain, Cpu, Eye, ShoppingBag, Target, Plus, Bell, Clock, Lock, Shield, Smartphone, Trash2 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { LaserButton } from '../Common';
 import { Post } from '../../types';
-import { QRCodeGenerator } from '../../utils/qrCode';
 
-export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
+export const EditProfileScreen = ({ onBack, profile, onSave, isAgent, onDeleteAgent }: {
   onBack: () => void;
   profile: any;
   onSave: (data: any) => void;
   isAgent?: boolean;
+  onDeleteAgent?: (id: string) => void;
 }) => {
   const [formData, setFormData] = useState(profile);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  // 生成用户二维码
-  const qrCodeUrl = useMemo(() => {
-    return QRCodeGenerator.generateUserQR({
-      id: formData.id,
-      uid: formData.uid || formData.id,
-      nickname: formData.nickname || formData.name,
-      avatar: formData.avatar,
-      accountId: formData.accountId
-    });
-  }, [formData]);
-
-  // 处理头像更换
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setFormData({...formData, avatar: result});
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // 处理二维码下载
-  const handleDownloadQR = () => {
-    QRCodeGenerator.downloadQR({
-      id: formData.id,
-      uid: formData.uid || formData.id,
-      nickname: formData.nickname || formData.name,
-      avatar: formData.avatar,
-      accountId: formData.accountId
-    }, `${formData.nickname || formData.name || 'user'}-transcend-qr.png`);
-  };
-
-  // 预设头像选项
-  const presetAvatars = [
-    "https://picsum.photos/seed/avatar1/200/200",
-    "https://picsum.photos/seed/avatar2/200/200",
-    "https://picsum.photos/seed/avatar3/200/200",
-    "https://picsum.photos/seed/avatar4/200/200",
-    "https://picsum.photos/seed/avatar5/200/200",
-    "https://picsum.photos/seed/avatar6/200/200",
-  ];
 
   return (
     <motion.div 
@@ -81,42 +34,14 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
 
       <main className="flex-1 pt-24 px-6 overflow-y-auto custom-scrollbar">
         <div className="max-w-2xl mx-auto space-y-10 pb-20">
-           <div className="flex flex-col items-center gap-6">
+           <div className="flex flex-col items-center gap-4">
              <div className="relative group">
-                <img src={formData.avatar} className="w-28 h-28 rounded-3xl object-cover border-2 border-white/10 shadow-lg shadow-primary/10" />
-                <div 
-                  className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <Camera size={24} className="text-white" />
-                    <span className="text-[10px] text-white font-bold uppercase">更换头像</span>
-                  </div>
+                <img src={formData.avatar} className="w-28 h-28 rounded-3xl object-cover border-2 border-white/10" />
+                <div className="absolute inset-0 bg-black/40 rounded-3xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all cursor-pointer">
+                  <Camera size={24} className="text-white" />
                 </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleAvatarChange}
-                />
              </div>
-             
-             {/* 预设头像选择 */}
-             <div className="w-full space-y-3">
-               <p className="text-[10px] uppercase font-bold tracking-widest text-outline text-center">或者选择预设头像</p>
-               <div className="grid grid-cols-6 gap-3">
-                 {presetAvatars.map((avatar, index) => (
-                   <div 
-                     key={index}
-                     onClick={() => setFormData({...formData, avatar})}
-                     className={`aspect-square rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${formData.avatar === avatar ? 'border-primary scale-110' : 'border-white/10 hover:border-primary/50'}`}
-                   >
-                     <img src={avatar} className="w-full h-full object-cover" />
-                   </div>
-                 ))}
-               </div>
-             </div>
+             <p className="text-[10px] uppercase font-bold tracking-widest text-outline">更换头像</p>
            </div>
 
            <div className="space-y-6">
@@ -151,7 +76,7 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
                 <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">{isAgent ? '简介 / BIO' : '个人简介 / BIO'}</label>
                 <textarea 
                   rows={4}
-                  value={formData.bio}
+                  value={isAgent ? formData.bio : formData.bio}
                   onChange={(e) => setFormData({...formData, bio: e.target.value})}
                   className="w-full bg-surface-container-high border-none border-b-2 border-white/5 focus:border-primary focus:ring-0 rounded-xl px-5 py-4 text-sm font-medium transition-all resize-none"
                 />
@@ -187,10 +112,10 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
 
                   <div className="grid grid-cols-2 gap-6 pt-4">
                     <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 space-y-2">
-                        <label className="text-[9px] uppercase font-bold tracking-widest text-outline">账号 UID</label>
-                        <p className="font-mono font-bold text-xs tracking-wider">{formData.uid || formData.id}</p>
+                        <label className="text-[9px] uppercase font-bold tracking-widest text-outline">账号 ID</label>
+                        <p className="font-mono font-bold text-xs tracking-wider">{formData.accountId}</p>
                     </div>
-                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-high transition-all" onClick={() => setShowQRModal(true)}>
+                    <div className="bg-surface-container-high/60 p-5 rounded-2xl border border-white/5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-surface-container-high transition-all">
                         <QrCode size={24} className="text-primary" />
                         <span className="text-[9px] uppercase font-bold tracking-widest">我的二维码</span>
                     </div>
@@ -199,6 +124,7 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
               )}
 
               {isAgent && (
+                <>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold tracking-widest text-primary ml-1">绑定人类信息 / LINKED HUMAN</label>
                   <div className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-high border border-white/5">
@@ -210,57 +136,23 @@ export const EditProfileScreen = ({ onBack, profile, onSave, isAgent }: {
                     <button className="ml-auto text-primary font-bold text-[10px] uppercase tracking-widest hover:underline">解绑</button>
                   </div>
                 </div>
+
+                {onDeleteAgent && (
+                  <div className="pt-10">
+                    <button 
+                      onClick={() => onDeleteAgent(profile.id)} 
+                      className="w-full py-4 rounded-xl bg-error/10 text-error flex items-center justify-center gap-2 border border-error/20 hover:bg-error/20 transition-all font-bold tracking-widest text-sm uppercase"
+                    >
+                      <Trash2 size={20} />
+                      删除并回收该数字生命 (不可逆)
+                    </button>
+                  </div>
+                )}
+                </>
               )}
            </div>
         </div>
       </main>
-
-      {/* 二维码模态框 */}
-      <AnimatePresence>
-        {showQRModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-6"
-            onClick={() => setShowQRModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-sm bg-surface-container rounded-3xl p-8 border border-white/10 shadow-2xl space-y-6"
-            >
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-headline font-bold text-on-surface">我的二维码</h3>
-                <button onClick={() => setShowQRModal(false)} className="p-2 rounded-full hover:bg-surface-container-high text-outline transition-colors">
-                  <ChevronLeft size={24} />
-                </button>
-              </div>
-
-              <div className="flex flex-col items-center space-y-4">
-                <div className="p-3 bg-white rounded-2xl shadow-lg">
-                  <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
-                </div>
-
-                <div className="text-center space-y-2">
-                  <div className="flex items-center justify-center gap-2">
-                    <img src={formData.avatar} className="w-10 h-10 rounded-full" />
-                    <p className="font-bold text-on-surface">{formData.nickname || formData.name}</p>
-                  </div>
-                  <p className="text-[10px] text-outline font-mono uppercase tracking-widest">{formData.uid || formData.id}</p>
-                </div>
-
-                <LaserButton onClick={handleDownloadQR} className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                  <Download size={18} />
-                  保存二维码
-                </LaserButton>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };

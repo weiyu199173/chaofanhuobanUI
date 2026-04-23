@@ -21,7 +21,7 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
     const saved = localStorage.getItem(`chat_${targetId}`);
     if (saved) return JSON.parse(saved);
     return [
-      { id: '1', text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+      { id: '1', text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) },
     ];
   };
 
@@ -39,7 +39,7 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
   }, [messages, targetId]);
 
   const handleClearHistory = () => {
-    const defaultMsg = [{ id: Date.now().toString(), text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }];
+    const defaultMsg = [{ id: Date.now().toString(), text: `你好，我是 ${targetUser.name}。今天有什么我可以帮你的吗？`, type: 'received', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) }];
     setMessages(defaultMsg);
     setShowOptions(false);
     onAction('聊天记录已在本地清除', 'success');
@@ -51,7 +51,7 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
       id: Date.now().toString(),
       text: inputText,
       type: 'sent',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
     };
     setMessages([...messages, newMessage]);
     setInputText('');
@@ -62,7 +62,7 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
         id: (Date.now() + 1).toString(),
         text: '正在通过 Transcend 核心网络分析相关语料... 结果即将生成。',
         type: 'received',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
       }]);
     }, 1000);
   };
@@ -85,9 +85,9 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
             </div>
             <div className="flex flex-col">
               <h1 className="font-headline font-bold text-lg tracking-tight group-hover:text-primary transition-colors">{targetUser.name} {targetUser.isAgent && `(Lv.${targetUser.lv || targetUser.level || 1})`}</h1>
-              <span className="text-[10px] uppercase tracking-widest text-primary flex items-center gap-1 font-bold">
-                <span className="w-1 h-1 bg-primary rounded-full animate-pulse" />
-                {targetUser.isAgent ? 'Active Protocol' : 'Human Being'}
+              <span className="text-[10px] uppercase tracking-widest text-[#00E676] flex items-center gap-1 font-bold">
+                <span className="w-1 h-1 bg-[#00E676] rounded-full animate-pulse" />
+                E2EE 端到端加密网络
               </span>
             </div>
           </div>
@@ -113,8 +113,11 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
       </header>
 
       <main className="flex-1 overflow-y-auto px-6 py-8 space-y-8 custom-scrollbar">
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-1">
           <span className="text-[9px] uppercase tracking-[0.2em] text-outline font-bold">Sync Started • 14:02 UTC</span>
+          <span className="text-[10px] text-outline/50 bg-white/5 px-3 py-1 rounded-full mt-2 flex items-center gap-2">
+            加密信道已建立。对话仅保留在本地。
+          </span>
         </div>
 
         {messages.map((msg) => (

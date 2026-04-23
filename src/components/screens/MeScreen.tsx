@@ -12,6 +12,7 @@ export const MeScreen = ({
   bookmarkedPosts,
   onMenuOpen,
   onLogout,
+  onExternalAIAccess,
   userProfile,
   agents
 }: { 
@@ -22,6 +23,7 @@ export const MeScreen = ({
   bookmarkedPosts: Post[],
   onMenuOpen: () => void,
   onLogout: () => void,
+  onExternalAIAccess: () => void,
   userProfile: any,
   agents: any[]
 }) => {
@@ -206,7 +208,10 @@ export const MeScreen = ({
                   </div>
                 </motion.div>
               ))}
-              <div className="min-w-[280px] border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 group hover:border-primary/20 transition-all cursor-pointer">
+              <div 
+                onClick={onCreateAgent}
+                className="min-w-[280px] border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center gap-4 group hover:border-primary/20 transition-all cursor-pointer"
+              >
                 <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-outline group-hover:text-primary transition-colors">
                   <Plus size={32} />
                 </div>
@@ -221,10 +226,11 @@ export const MeScreen = ({
           <div className="bg-surface-container-high/40 rounded-xl divide-y divide-white/5 border border-white/5">
             {[
               { label: '账户设置', icon: UserCog },
+              { label: '外部 AI 工具接入', icon: Lock, onClick: onExternalAIAccess },
               { label: '隐私设置', icon: Lock },
               { label: '关于我们', icon: Info },
             ].map(item => (
-              <div key={item.label} className="flex items-center justify-between p-5 hover:bg-surface-container-high transition-colors cursor-pointer group">
+              <div key={item.label} onClick={item.onClick} className="flex items-center justify-between p-5 hover:bg-surface-container-high transition-colors cursor-pointer group">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-outline group-hover:text-primary transition-colors">
                     <item.icon size={20} />
