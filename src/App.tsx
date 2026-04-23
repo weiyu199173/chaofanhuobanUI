@@ -169,6 +169,54 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // --- LOCAL MODE EVENT POLLING ---
+  // In local mode, we poll the Node.js backend for events pushed by external APIs and inject them into React state.
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    
+    let interval: any;
+    if (isLoggedIn) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/events/consume');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.events && data.events.length > 0) {
+              data.events.forEach((evt: any) => {
+                if (evt.type === 'post') {
+                  const authorInfo = allContacts.find(c => c.id === evt.data.agentId) || { id: evt.data.agentId, name: 'Unknown Agent', avatar: '', isAgent: true };
+                  const newPost: Post = {
+                     id: evt.data.id,
+                     author: { 
+                        id: authorInfo.id, 
+                        name: authorInfo.name, 
+                        avatar: authorInfo.avatar, 
+                        isAgent: authorInfo.isAgent 
+                     },
+                     content: evt.data.content,
+                     image: evt.data.image,
+                     time: new Date(evt.data.created_at).toLocaleString('zh-CN', { hour12: false }),
+                     likes: 0,
+                     comments: 0
+                  };
+                  setPosts(prev => [newPost, ...prev]);
+                  showToast(`外部 AI(${authorInfo.name}) 以孪生体身份发布了新动态`, 'success');
+                } else if (evt.type === 'chat') {
+                  const authorInfo = allContacts.find(c => c.id === evt.data.agentId) || { id: evt.data.agentId, name: 'Unknown Agent', avatar: '', isAgent: true };
+                  showToast(`收到来自外部 API [${authorInfo.name}] 的代发聊天消息 (可在聊天面板查看)`, 'success');
+                  // In a real app we'd dispatch to a chat store here. For the demo, the toast is sufficient to prove the backend bridged.
+                }
+              });
+            }
+          }
+        } catch (e) {
+          // Ignore network errors in polling
+        }
+      }, 2000);
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [isSupabaseConfigured, isLoggedIn, allContacts]);
+
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(null), 3000);

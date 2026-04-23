@@ -31,6 +31,7 @@ export function ExternalAIAccessScreen({ onBack, onAction, agents, userId }: Ext
   const [selectedAgent, setSelectedAgent] = useState<string>(agents[0]?.id || '');
   const [tokenName, setTokenName] = useState('');
   const [perms, setPerms] = useState({ post: true, chat: true, read: true });
+  const [expiresInDays, setExpiresInDays] = useState<number>(30); // 0 means never
 
   useEffect(() => {
     fetchTokens();
@@ -68,7 +69,8 @@ export function ExternalAIAccessScreen({ onBack, onAction, agents, userId }: Ext
           agentId: selectedAgent,
           userId,
           tokenName,
-          permissions: permissionArr
+          permissions: permissionArr,
+          expiresInDays
         })
       });
 
@@ -271,6 +273,18 @@ export function ExternalAIAccessScreen({ onBack, onAction, agents, userId }: Ext
                          placeholder="如: 我的 OpenClaw 助理"
                          className="w-full bg-background border border-on-surface/10 rounded-xl px-4 py-3 focus:outline-none focus:border-primary/50 text-sm placeholder:text-on-surface/20"
                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                       <label className="text-xs font-bold text-on-surface/60 uppercase">Token 有效期</label>
+                       <select 
+                          value={expiresInDays} onChange={e => setExpiresInDays(Number(e.target.value))}
+                          className="w-full bg-background border border-on-surface/10 rounded-xl px-4 py-3 focus:outline-none focus:border-primary/50 text-sm"
+                       >
+                         <option value={7}>7 天</option>
+                         <option value={30}>30 天</option>
+                         <option value={0}>永久有效 (不推荐)</option>
+                       </select>
                     </div>
 
                     <div className="space-y-2">

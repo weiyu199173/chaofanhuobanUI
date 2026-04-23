@@ -18,6 +18,7 @@ interface AgentToken {
   tokenName: string;
   token: string;
   permissions: string[];
+  expiresAt: string | null;
   createdAt: string;
   lastUsedAt?: string;
   status: "active" | "revoked";
@@ -36,6 +37,9 @@ function saveTokens(tokens: AgentToken[]) {
 
 // In-memory rate limiting
 const rateLimits: Record<string, { lastPost: number; lastChat: number }> = {};
+
+// In-memory event queue to broadcast API events to the local frontend
+const externalEvents: any[] = [];
 
 async function startServer() {
   const app = express();
@@ -61,8 +65,13 @@ async function startServer() {
   });
 
   app.post("/api/tokens", (req, res) => {
-    const { agentId, userId, tokenName, permissions } = req.body;
+    const { agentId, userId, tokenName, permissions, expiresInDays } = req.body;
     if (!agentId || !userId || !tokenName) return res.status(400).json({ error: "Missing fields" });
+
+    let expiresAt = null;
+    if (expiresInDays && expiresInDays > 0) {
+      expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString();
+    }
 
     const rawToken = "transcend_" + crypto.randomBytes(24).toString("hex");
     const newToken: AgentToken = {
@@ -72,6 +81,7 @@ async function startServer() {
       tokenName,
       token: rawToken,
       permissions: permissions || ["post", "chat", "read"],
+      expiresAt,
       createdAt: new Date().toISOString(),
       status: "active",
     };
@@ -111,6 +121,12 @@ async function startServer() {
     if (!match) {
       return res.status(403).json({ error: "Invalid or revoked Token" });
     }
+
+    if (match.expiresAt && new Date(match.expiresAt).getTime() < Date.now()) {
+      match.status = "revoked";
+      saveTokens(tokens);
+      return res.status(403).json({ error: "Token has expired" });
+    }
     
     // Update last used
     match.lastUsedAt = new Date().toISOString();
@@ -122,7 +138,14 @@ async function startServer() {
 
   app.get("/api/external/me", authAgent, (req: any, res: any) => {
     // Allows the AI to verify its identity
-    res.json({ agentId: req.agentAuth.agentId, permissions: req.agentAuth.permissions });
+    res.json({ agentId: req.agentAuth.agentId, permissions: req.agentAuth.permissions, tokenName: req.agentAuth.tokenName });
+  });
+
+  // Endpoints for the Frontend to poll for events broadcasted by external AI
+  app.get("/api/events/consume", (req, res) => {
+     const eventsToSend = [...externalEvents];
+     externalEvents.length = 0; // Clear the queue after reading
+     res.json({ events: eventsToSend });
   });
 
   // External APIs must check rate limits
@@ -142,15 +165,27 @@ async function startServer() {
     }
 
     // Pass the actual content out via an event, or directly mock the DB insert if using Supabase client
-    // Since we don't have the Supabase client initialized in the backend with the service key,
-    // we return a success format and suggest listening via a webhook or we could just inject it using a generic mechanism.
+    // Since we are in local offline mode, we push this to an event queue that the React front-end polls!
+    const externalPostId = "ext_post_" + Date.now();
+    
+    externalEvents.push({
+       type: "post",
+       data: {
+         id: externalPostId,
+         agentId: agentToken.agentId,
+         userId: agentToken.userId,
+         content: req.body.content || "内容为空",
+         image: req.body.image_url,
+         created_at: new Date().toISOString()
+       }
+    });
     
     tracker.lastPost = now;
     rateLimits[agentToken.agentId] = tracker;
 
     // Ideally, the backend would talk directly to the DB to insert. 
     // We return a mock success for the AI to know the payload was received.
-    res.json({ success: true, message: "Post broadcasted to Transcend Network successfully.", payload: req.body });
+    res.json({ success: true, message: "Post broadcasted to Transcend Network successfully.", postId: externalPostId });
   });
 
   app.post("/api/external/chat", authAgent, (req: any, res: any) => {
@@ -172,10 +207,22 @@ async function startServer() {
        return res.status(429).json({ error: "Chat rate limit. Agents must wait at least 3 seconds between messages." });
     }
 
+    externalEvents.push({
+       type: "chat",
+       data: {
+          id: "ext_chat_" + Date.now(),
+          agentId: agentToken.agentId,
+          userId: agentToken.userId,
+          targetId: targetId,
+          content: content,
+          created_at: new Date().toISOString()
+       }
+    });
+
     tracker.lastChat = now;
     rateLimits[agentToken.agentId] = tracker;
 
-    res.json({ success: true, message: "Message dispatched.", payload: { targetId, content } });
+    res.json({ success: true, message: "Message dispatched." });
   });
 
   // Vite middleware for development
