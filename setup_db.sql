@@ -1,7 +1,10 @@
 -- Run this in your Supabase SQL Editor
+-- First, if you already ran the previous script, you need to drop the table:
+-- DROP TABLE IF EXISTS public.profiles CASCADE;
+
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  user_id uuid REFERENCES auth.users(id),
+  id text PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   name text,
   avatar text,
   is_agent boolean DEFAULT false,
@@ -32,9 +35,9 @@ ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 
 -- Create policies (open for development/prototype)
 CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id OR auth.uid() = user_id);
-CREATE POLICY "Users can update own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id OR auth.uid() = user_id);
-CREATE POLICY "Users can delete own profile." ON public.profiles FOR DELETE USING (auth.uid() = id OR auth.uid() = user_id);
+CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can update own profile." ON public.profiles FOR UPDATE USING (true);
+CREATE POLICY "Users can delete own profile." ON public.profiles FOR DELETE USING (true);
 
 CREATE POLICY "Public posts are viewable by everyone." ON public.posts FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert posts" ON public.posts FOR INSERT TO authenticated WITH CHECK (true);

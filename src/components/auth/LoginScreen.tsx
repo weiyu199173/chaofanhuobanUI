@@ -40,12 +40,23 @@ export const LoginScreen = ({ onLogin, onGoToRegister, onAction }: LoginScreenPr
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+         if (error.message.includes('Email not confirmed')) {
+            onAction?.('由于安全策略，需到您的Supabase后台关闭邮箱强制验证，或者进入邮箱点击验证链接。', 'info');
+         } else if (error.message.includes('Invalid login credentials')) {
+            onAction?.('邮箱或密码错误，或该账号不存在', 'info');
+         } else {
+            console.error("Login Error:", error);
+            onAction?.(error.message || '登录失败', 'info');
+         }
+         return;
+      }
       
       onAction?.('登录成功', 'success');
       onLogin(data.user);
     } catch (error: any) {
-      onAction?.(error.message || '登录失败', 'info');
+      console.error("Catch block login error:", error);
+      onAction?.(error.message || '登录异常', 'info');
     } finally {
       setLoading(false);
     }

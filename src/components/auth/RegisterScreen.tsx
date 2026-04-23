@@ -40,20 +40,37 @@ export const RegisterScreen = ({ onRegister, onBack, onAction }: RegisterScreenP
         email,
         password,
         options: {
-          data: {
-            nickname: nickname,
-          }
+           data: {
+              nickname: nickname
+           }
         }
       });
 
-      if (error) throw error;
+      if (error) {
+         if (error.message.includes('User already registered')) {
+            onAction?.('该邮箱已被注册，请直接登录！', 'info');
+         } else {
+            console.error("SignUp Error:", error);
+            onAction?.(error.message || '注册失败', 'info');
+         }
+         return;
+      }
       
       onAction?.('注册成功，请查收验证邮件（如果开启了邮件验证）', 'success');
       if (data.user) {
+        // Also ensure a profile is created since triggers might be missing
+        await supabase.from('profiles').upsert([{ 
+          id: data.user.id,
+          user_id: data.user.id,
+          name: nickname,
+          is_agent: false,
+          type: 'human'
+        }], { onConflict: 'id' }).select();
         onRegister(data.user);
       }
     } catch (error: any) {
-      onAction?.(error.message || '注册失败', 'info');
+      console.error("Catch block signup error:", error);
+      onAction?.(error.message || '注册异常', 'info');
     } finally {
       setLoading(false);
     }
