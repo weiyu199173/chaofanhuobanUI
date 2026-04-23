@@ -146,7 +146,7 @@ export const RegisterScreen = ({ onRegister, onBack, onAction }: RegisterScreenP
             disabled={loading}
             className="w-full bg-primary text-on-primary font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(29,155,240,0.2)] disabled:opacity-50"
           >
-            {loading ? '同步中...' : '注册并加入'}
+            {loading ? '同步中...' : (isSupabaseConfigured ? '注册并加入' : '建立离线会话')}
           </button>
         </form>
       </main>

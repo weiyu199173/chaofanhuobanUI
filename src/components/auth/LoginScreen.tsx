@@ -127,7 +127,7 @@ export const LoginScreen = ({ onLogin, onGoToRegister, onAction }: LoginScreenPr
             disabled={loading}
             className="w-full bg-on-surface text-background font-headline font-bold text-sm tracking-widest py-5 rounded-full hover:scale-[0.98] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] disabled:opacity-50"
           >
-            {loading ? '同步中...' : (isSupabaseConfigured ? '登录' : '进入演示模式')}
+            {loading ? '同步中...' : (isSupabaseConfigured ? '登录' : '进入单机离线模式')}
           </button>
 
           <div className="text-center">

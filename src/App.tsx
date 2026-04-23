@@ -234,7 +234,7 @@ export default function App() {
       {!isSupabaseConfigured && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-primary/10 border border-primary/20 backdrop-blur-md rounded-full flex items-center gap-2 pointer-events-none">
           <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-          <span className="text-[9px] font-bold text-primary uppercase tracking-widest">单机演示模式</span>
+          <span className="text-[9px] font-bold text-primary uppercase tracking-widest">单机离线模式 (数据不支持云端持久化)</span>
         </div>
       )}
 

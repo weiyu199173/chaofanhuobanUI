@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://kcgjwkzpovosxlqygufz.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_eT3CNK1jrAYkAf1VvGwcNA_MmgyVnb4';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://yzhxcljvdcizmxtbxkip.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_k2gpmU7GTsKdFfp_GTT4TA_c6Ja55fp';
 
-// Determine if we have valid credentials
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://placeholder.supabase.co');
+// User requested to switch to local database (memory state). We explicitly force this to false.
+export const isSupabaseConfigured = false;
 
 // Use a placeholder if not configured to prevent crash on initialization
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
+  'https://placeholder.supabase.co',
+  'placeholder'
 );
