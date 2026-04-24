@@ -30,8 +30,8 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
           <h1 className="font-headline tracking-[0.2em] text-xl font-bold uppercase">档案详情</h1>
         </div>
         <div className="flex gap-4">
-           <Share size={20} className="text-outline cursor-pointer" />
-           <MoreVertical size={20} className="text-outline cursor-pointer" />
+           <Share size={20} onClick={() => onAction?.('分享功能已锁定', 'info')} className="text-outline cursor-pointer hover:text-primary transition-colors" />
+           <MoreVertical size={20} onClick={() => onAction?.('更多操作正在开发中', 'info')} className="text-outline cursor-pointer hover:text-primary transition-colors" />
         </div>
       </nav>
 
@@ -170,7 +170,7 @@ export const AgentDetailScreen = ({ profileId, onBack, onChatClick, allContacts,
               <MessageCircle size={20} /> 进入对话
             </button>
           )}
-          <button className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all">
+          <button onClick={() => onAction?.('极速模式开发中', 'info')} className="w-14 h-14 shrink-0 bg-surface-container-highest border border-white/5 rounded-full flex items-center justify-center text-outline active:scale-90 transition-all hover:bg-surface-container-high hover:text-primary">
             <Bolt size={24} />
           </button>
         </div>

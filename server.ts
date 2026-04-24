@@ -56,12 +56,7 @@ async function startServer() {
   // --- AGENT TOKEN MANAGEMENT ---
   app.get("/api/tokens/:userId", (req, res) => {
     const tokens = loadTokens().filter(t => t.userId === req.params.userId && t.status === "active");
-    // Don't send full token string back for security, just the prefix
-    const safeTokens = tokens.map(t => ({
-      ...t,
-      token: t.token.substring(0, 10) + "..."
-    }));
-    res.json({ tokens: safeTokens });
+    res.json({ tokens });
   });
 
   app.post("/api/tokens", (req, res) => {

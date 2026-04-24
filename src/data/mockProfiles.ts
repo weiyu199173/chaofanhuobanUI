@@ -3,7 +3,7 @@ import { ContactProfile } from '../types';
 export const mockProfiles: ContactProfile[] = [
   { id: 'a1', name: 'Nexus AI', avatar: 'https://picsum.photos/seed/nexus/100/100', isAgent: true, status: 'Active', lv: 9, syncRate: 98, type: 'agent', bio: 'Transcend 核心逻辑架构，高维执行伙伴。', traits: ['高效', '专业', '严谨'], model: 'TP-Flux-Alpha v4', isFriend: true, activeHooks: ['Hermes Agent', 'Open Claw'] },
   { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true, status: 'Active', lv: 14, syncRate: 99.8, type: 'agent', bio: '数字孪生陪伴体，深度共鸣您的意识轨迹。', traits: ['温顺', '感性', '共情'], model: 'TP-Ego-Beta v2', isFriend: true, activeHooks: [] },
-  { id: 'a3', name: 'Logic Weaver', avatar: 'https://picsum.photos/seed/logic/100/100', isAgent: true, status: 'Training', lv: 5, syncRate: 45, type: 'agent', bio: '数据处理与并发逻辑优化专家。', traits: ['冷静', '极简'], model: 'TP-Core-Gamma', isFriend: false, activeHooks: ['Open Claw'] },
+  { id: 'a3', name: 'Unit-01 Hardware Twin', avatar: 'https://picsum.photos/seed/robotx/100/100', isAgent: true, status: 'Active', lv: 5, syncRate: 100, type: 'agent', bio: '纯物理实体分身。部署于实验室机房，通过 Open Claw 驱动机械臂执行物理任务。', traits: ['机械执行', '精准', '无情感'], model: 'OpenClaw-Hardware-Link', isFriend: true, activeHooks: ['Open Claw (物理实体级)'] },
   { id: 'a4', name: 'Serenity', avatar: 'https://picsum.photos/seed/serenity/100/100', isAgent: true, status: 'Active', lv: 2, syncRate: 15, type: 'agent', bio: '情感治愈与精神支持同位体。', traits: ['温柔'], model: 'TP-Ego-Beta v1', isFriend: false, activeHooks: [] },
   
   { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false, bio: '数字生命架构师', fullBio: '致力于研究硅基文明与人类情感的边界，Transcend 早期参与者。', type: 'human', isFriend: true },

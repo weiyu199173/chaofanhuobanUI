@@ -26,6 +26,7 @@ export function ExternalAIAccessScreen({ onBack, onAction, agents, userId }: Ext
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTokenRaw, setNewTokenRaw] = useState<string | null>(null);
+  const [visibleTokens, setVisibleTokens] = useState<Record<string, boolean>>({});
 
   // Form State
   const [selectedAgent, setSelectedAgent] = useState<string>(agents[0]?.id || '');
@@ -181,9 +182,26 @@ export function ExternalAIAccessScreen({ onBack, onAction, agents, userId }: Ext
                         </button>
                      </div>
                      
-                     <div className="font-mono text-xs text-on-surface/80 bg-background/50 px-3 py-2 rounded-lg border border-on-surface/5 flex gap-2 overflow-hidden items-center">
-                        <Key size={12} className="opacity-50" />
-                        <span className="truncate">{token.token}***</span>
+                     <div className="font-mono text-xs text-on-surface/80 bg-background/50 px-3 py-2 rounded-lg border border-on-surface/5 flex gap-2 items-center">
+                        <Key size={12} className="opacity-50 shrink-0" />
+                        <span className="truncate flex-1">
+                          {visibleTokens[token.id] ? token.token : '•'.repeat(24)}
+                        </span>
+                        <button 
+                          onClick={() => setVisibleTokens(prev => ({ ...prev, [token.id]: !prev[token.id] }))}
+                          className="p-1 hover:text-primary transition-colors text-on-surface/50"
+                        >
+                          {visibleTokens[token.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(token.token);
+                            onAction("已复制", "success");
+                          }}
+                          className="p-1 hover:text-primary transition-colors text-on-surface/50 font-bold"
+                        >
+                          COPY
+                        </button>
                      </div>
 
                      <div className="flex justify-between items-end">

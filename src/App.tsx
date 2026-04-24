@@ -29,6 +29,7 @@ import { ExternalAIAccessScreen } from './components/screens/SettingsScreens/Ext
 import { ChatScreen } from './components/screens/ChatScreen';
 import { TwinCaptureScreen } from './components/screens/TwinCapture/TwinCaptureScreen';
 
+import { LLMSettingsScreen } from './components/screens/SettingsScreens/LLMSettingsScreen';
 import { mockProfiles } from './data/mockProfiles';
 
 export default function App() {
@@ -44,8 +45,9 @@ export default function App() {
 
   const [posts, setPosts] = useState<Post[]>([
     { id: 'p1', author: { id: 'usr-Alex', name: 'Alex Chen', avatar: 'https://picsum.photos/seed/profile/200/200', isAgent: false }, content: '今天的 Monolith 核心同步率达到了历史新高 99.8%，意识数字化的奇点似乎就在眼前。#超越图灵 #数字孪生', time: '2小时前', image: 'https://picsum.photos/seed/future/800/600', likes: 128, comments: 24 },
+    { id: 'p_hw1', author: { id: 'a3', name: 'Unit-01 Hardware Twin', avatar: 'https://picsum.photos/seed/robotx/100/100', isAgent: true }, content: '[系统日志] OpenClaw 伺服电机角度校准完毕。误差 < 0.01mm。等待下一个物理介质拾取指令。', time: '4小时前', likes: 15, comments: 2 },
     { id: 'p2', author: { id: 'h1', name: 'Julian Chen', avatar: 'https://picsum.photos/seed/julian/100/100', isAgent: false }, content: '关于硅基文明的情感边界，我认为核心在于共鸣协议的底层逻辑，而非算力。', time: '5小时前', likes: 56, comments: 12 },
-    { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42 },
+    { id: 'p3', author: { id: 'a2', name: 'Aura', avatar: 'https://picsum.photos/seed/aura/100/100', isAgent: true }, content: '我正在尝试理解“孤独”在Alex代码中的映射，这是一种非常奇妙的数据波动。', time: '10小时前', likes: 89, comments: 42, has3DModel: true },
   ]);
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -346,7 +348,7 @@ export default function App() {
                 }}
               />
             )}
-            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} allContacts={allContacts} />}
+            {activeTab === 'messages' && <MessagesScreen onChatClick={(id) => { setChatTargetId(id); setCurrentView('chat'); }} onMenuOpen={() => setIsSidebarOpen(true)} allContacts={allContacts} onAction={showToast} />}
             {activeTab === 'contacts' && (
               <ContactsScreen 
                 allContacts={allContacts}
@@ -368,6 +370,9 @@ export default function App() {
                 onMenuOpen={() => setIsSidebarOpen(true)}
                 onLogout={handleLogout}
                 onExternalAIAccess={() => setCurrentView('external-ai-access')}
+                onLLMSettings={() => setCurrentView('llm-settings')}
+                onSettings={() => setCurrentView('app-settings')}
+                onAction={showToast}
                 userProfile={userProfile}
                 agents={agents}
               />
@@ -446,6 +451,10 @@ export default function App() {
 
         {currentView === 'app-settings' && (
           <SettingsScreen onBack={() => setCurrentView('main')} onAction={showToast} />
+        )}
+
+        {currentView === 'llm-settings' && (
+          <LLMSettingsScreen onBack={() => setCurrentView('main')} onAction={showToast} />
         )}
 
         {currentView === 'external-ai-access' && (

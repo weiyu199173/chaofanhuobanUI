@@ -13,6 +13,9 @@ export const MeScreen = ({
   onMenuOpen,
   onLogout,
   onExternalAIAccess,
+  onLLMSettings,
+  onSettings,
+  onAction,
   userProfile,
   agents
 }: { 
@@ -24,6 +27,9 @@ export const MeScreen = ({
   onMenuOpen: () => void,
   onLogout: () => void,
   onExternalAIAccess: () => void,
+  onLLMSettings: () => void,
+  onSettings: () => void,
+  onAction: (m: string, t?: 'success'|'info') => void,
   userProfile: any,
   agents: any[]
 }) => {
@@ -40,7 +46,7 @@ export const MeScreen = ({
           <LaserButton onClick={onCreateAgent} className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary/20 transition-all">
             <Plus size={22} />
           </LaserButton>
-          <LaserButton className="p-2 rounded-full text-primary">
+          <LaserButton onClick={() => window.alert('全域搜索功能准备中')} className="p-2 rounded-full text-primary">
             <Search size={22} />
           </LaserButton>
         </div>
@@ -225,10 +231,11 @@ export const MeScreen = ({
           <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-outline ml-2">系统设置</h3>
           <div className="bg-surface-container-high/40 rounded-xl divide-y divide-white/5 border border-white/5">
             {[
-              { label: '账户设置', icon: UserCog },
+              { label: '账户设置', icon: UserCog, onClick: onSettings },
+              { label: '本地 LLM 大模型配置', icon: Brain, onClick: onLLMSettings },
               { label: '外部 AI 工具接入', icon: Lock, onClick: onExternalAIAccess },
-              { label: '隐私设置', icon: Lock },
-              { label: '关于我们', icon: Info },
+              { label: '隐私设置', icon: Shield, onClick: onSettings },
+              { label: '关于我们', icon: Info, onClick: () => alert('Project Transcend Beta v0.1\n\n由 Google AI Studio Build 支持驱动。\n这是一项基于数字孪生隐喻的全栈原型应用，感谢您的体验。') },
             ].map(item => (
               <div key={item.label} onClick={item.onClick} className="flex items-center justify-between p-5 hover:bg-surface-container-high transition-colors cursor-pointer group">
                 <div className="flex items-center gap-4">

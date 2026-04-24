@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  Menu, Bell, Target, Search, ImageIcon, Bolt, Clock, Sparkles, Heart, MessageCircle, Bookmark, Share, Trash2, AtSign, Hash, X
+  Menu, Bell, Target, Search, ImageIcon, Bolt, Clock, Sparkles, Heart, MessageCircle, Bookmark, Share, Trash2, AtSign, Hash, X, Box
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LaserButton } from '../Common';
@@ -29,6 +29,7 @@ export const DiscoveryScreen = ({
   const [suckingPostId, setSuckingPostId] = useState<string | null>(null);
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selected3DModel, setSelected3DModel] = useState<boolean>(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchTab, setSearchTab] = useState<'all' | 'users' | 'topics'>('all');
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -99,27 +100,29 @@ export const DiscoveryScreen = ({
   };
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() && !selectedImage) return;
+    if (!newPostContent.trim() && !selectedImage && !selected3DModel) return;
     const postData = {
       author_data: { id: userProfile.id || 'me', name: userProfile.nickname, avatar: userProfile.avatar, isAgent: false },
       content: newPostContent, image_url: selectedImage, likes_count: 0, comments_count: 0,
+      has_3d_model: selected3DModel,
       user_id: isSupabaseConfigured ? (await supabase.auth.getUser()).data.user?.id : 'demo'
     };
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.from('posts').insert([postData]).select();
       if (error) { onAction('发布失败: ' + error.message, 'info'); return; }
       if (data && data[0]) {
-        const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
+        const newPost: Post = { id: data[0].id, author: data[0].author_data, content: data[0].content, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0, has3DModel: selected3DModel };
         setPosts([newPost, ...posts]);
         if (onCreatePost) onCreatePost(newPost);
       }
     } else {
-      const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0 };
+      const newPost: Post = { id: Date.now().toString(), author: postData.author_data, content: newPostContent, time: '刚刚', image: selectedImage || undefined, likes: 0, comments: 0, has3DModel: selected3DModel };
       setPosts([newPost, ...posts]);
       if (onCreatePost) onCreatePost(newPost);
     }
     setNewPostContent('');
     setSelectedImage(null);
+    setSelected3DModel(false);
     if (activeFeed === 'silicon') setActiveFeed('carbon');
   };
 
@@ -241,10 +244,11 @@ export const DiscoveryScreen = ({
                   <div className="flex gap-4 text-outline/60">
                     <input type="file" ref={fileInputRef} onChange={handleImageSelect} accept="image/*" className="hidden" />
                     <LaserButton onClick={() => fileInputRef.current?.click()} className="p-1 rounded-sm"><ImageIcon size={20} className="hover:text-primary transition-colors" /></LaserButton>
+                    <LaserButton onClick={() => setSelected3DModel(!selected3DModel)} className={`p-1 rounded-sm ${selected3DModel ? 'text-primary' : ''}`}><Box size={20} className="hover:text-primary transition-colors" /></LaserButton>
                     <LaserButton onClick={() => setNewPostContent(prev => prev + ' #')} className="p-1 rounded-sm"><Hash size={20} className="hover:text-primary transition-colors" /></LaserButton>
                     <LaserButton onClick={() => setNewPostContent(prev => prev + ' @')} className="p-1 rounded-sm"><AtSign size={20} className="hover:text-primary transition-colors" /></LaserButton>
                   </div>
-                  <LaserButton onClick={handleCreatePost} disabled={!newPostContent.trim() && !selectedImage} className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline">发布</LaserButton>
+                  <LaserButton onClick={handleCreatePost} disabled={!newPostContent.trim() && !selectedImage && !selected3DModel} className="bg-on-surface text-background px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest disabled:opacity-20 transition-all font-headline">发布</LaserButton>
                 </div>
                 <AnimatePresence>
                   {showMentionMenu && (
@@ -394,7 +398,21 @@ export const DiscoveryScreen = ({
                       </div>
                     </div>
                     <p className="leading-relaxed mb-4 text-sm text-on-surface/90 font-light">{renderContent(post.content)}</p>
-                    {post.image && (
+                    {post.has3DModel && (
+                       <div className="relative rounded-2xl overflow-hidden mb-4 border border-primary/20 bg-surface-container-low aspect-[4/3] flex flex-col items-center justify-center group cursor-pointer">
+                          <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/hologram/800/600')] bg-cover bg-center opacity-30 group-hover:opacity-50 transition-all mix-blend-lighten grayscale-[0.8] group-hover:grayscale-0" />
+                          <div className="absolute inset-0 bg-linear-to-t from-background via-transparent to-transparent opacity-80" />
+                          <motion.div animate={{ rotateY: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }} className="w-24 h-24 border border-primary/40 rounded-full flex items-center justify-center relative z-10">
+                            <motion.div animate={{ rotateX: 360, rotateZ: 180 }} transition={{ duration: 15, repeat: Infinity, ease: 'linear' }} className="absolute w-20 h-20 border border-secondary/40 rounded-full" />
+                            <Box size={32} className="text-primary group-hover:drop-shadow-[0_0_15px_rgba(0,255,100,0.8)] transition-all" />
+                          </motion.div>
+                          <div className="relative z-10 mt-6 flex items-center gap-2 px-4 py-1.5 rounded-full bg-background/80 backdrop-blur-md border border-white/10">
+                             <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                             <span className="text-[10px] uppercase font-bold tracking-widest text-primary">Transcend 空间数据包</span>
+                          </div>
+                       </div>
+                    )}
+                    {post.image && !post.has3DModel && (
                       <div className="relative rounded-xl overflow-hidden mb-4 border border-white/5 group">
                         <img src={post.image} className="w-full grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" referrerPolicy="no-referrer" />
                         <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60" />

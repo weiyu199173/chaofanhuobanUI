@@ -56,15 +56,62 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
     setMessages([...messages, newMessage]);
     setInputText('');
     
-    // Auto reply for demo
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        text: '正在通过 Transcend 核心网络分析相关语料... 结果即将生成。',
-        type: 'received',
-        time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
-      }]);
-    }, 1000);
+    // Auto reply or Real LLM reply
+    const savedConfig = localStorage.getItem('user_llm_config');
+    let hasCalledRealLLM = false;
+
+    if (savedConfig && targetUser.isAgent) {
+      try {
+        const config = JSON.parse(savedConfig);
+        if (config.apiKey && config.provider === 'openai') {
+          hasCalledRealLLM = true;
+          const endpoint = config.baseUrl ? `${config.baseUrl}/chat/completions` : 'https://api.openai.com/v1/chat/completions';
+          
+          fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+              model: config.model || "gpt-3.5-turbo",
+              messages: [
+                 { role: "system", content: `You are an AI agent named ${targetUser.name}. ${targetUser.bio || ''}` },
+                 { role: "user", content: inputText }
+              ]
+            })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.choices && data.choices[0] && data.choices[0].message) {
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                text: data.choices[0].message.content,
+                type: 'received',
+                time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+              }]);
+            } else if (data.error) {
+              onAction(`大模型报错: ${data.error.message}`, 'info');
+            }
+          })
+          .catch(e => {
+            console.error("LLM Error", e);
+            onAction('模型请求失败，请检查网络或跨域设置。', 'info');
+          });
+        }
+      } catch(e) {}
+    }
+
+    if (!hasCalledRealLLM) {
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: '正在通过 Transcend 核心网络分析相关语料... (当前为本地推演，未配置有效 LLM 密钥)。',
+          type: 'received',
+          time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+        }]);
+      }, 1000);
+    }
   };
 
   return (
@@ -148,7 +195,7 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
                   { icon: Video, label: '视频' },
                   { icon: Phone, label: '通话' },
                 ].map(item => (
-                  <button key={item.label} className="flex flex-col items-center gap-2 group outline-none">
+                  <button key={item.label} onClick={() => onAction(`${item.label} 功能尚未就绪`, 'info')} className="flex flex-col items-center gap-2 group outline-none">
                     <div className="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center text-primary group-active:scale-95 transition-all border border-white/5 group-hover:border-primary/50 group-hover:bg-primary/5">
                       <item.icon size={24} />
                     </div>
@@ -178,8 +225,8 @@ export const ChatScreen = ({ onBack, targetId, agents, userProfile, onProfileCli
               type="text"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-3 text-outline">
-              <Smile size={20} className="hover:text-primary transition-colors cursor-pointer" />
-              <Mic size={20} className="hover:text-primary transition-colors cursor-pointer" />
+              <Smile size={20} onClick={() => onAction('Emoji 面板开发中', 'info')} className="hover:text-primary transition-colors cursor-pointer" />
+              <Mic size={20} onClick={() => onAction('语音输入功能开发中', 'info')} className="hover:text-primary transition-colors cursor-pointer" />
             </div>
           </div>
 

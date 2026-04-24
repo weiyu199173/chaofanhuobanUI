@@ -3,7 +3,7 @@ import { Menu, PlusSquare, Command, Search, Verified } from 'lucide-react';
 import { LaserButton } from '../Common';
 import { Chat } from '../../types';
 
-export const MessagesScreen = ({ onChatClick, onMenuOpen, allContacts }: { onChatClick: (id: string) => void, onMenuOpen: () => void, allContacts: any[] }) => {
+export const MessagesScreen = ({ onChatClick, onMenuOpen, allContacts, onAction }: { onChatClick: (id: string) => void, onMenuOpen: () => void, allContacts: any[], onAction: (m: string, t?: 'success'|'info') => void }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Dynamically assemble chat history from allContacts and localStorage
@@ -55,8 +55,8 @@ export const MessagesScreen = ({ onChatClick, onMenuOpen, allContacts }: { onCha
           <h1 className="text-xl font-bold text-on-surface tracking-widest uppercase font-headline">消息</h1>
         </div>
         <div className="flex items-center gap-4 text-primary">
-          <LaserButton className="p-2 rounded-full"><PlusSquare size={22} /></LaserButton>
-          <LaserButton className="p-2 rounded-full"><Command size={22} /></LaserButton>
+          <LaserButton onClick={() => onAction('发起新群聊待实装', 'info')} className="p-2 rounded-full"><PlusSquare size={22} /></LaserButton>
+          <LaserButton onClick={() => onAction('指令模式待实装', 'info')} className="p-2 rounded-full"><Command size={22} /></LaserButton>
         </div>
       </header>
 

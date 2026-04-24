@@ -1,5 +1,5 @@
 export type AppTab = 'square' | 'messages' | 'contacts' | 'me';
-export type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile' | 'skill-warehouse' | 'mcp-market' | 'app-settings' | 'twin-capture' | 'external-ai-access';
+export type AppView = 'main' | 'create-agent' | 'chat' | 'login' | 'register' | 'agent-management' | 'agent-detail' | 'create-post' | 'edit-profile' | 'my-moments' | 'edit-agent-profile' | 'skill-warehouse' | 'mcp-market' | 'app-settings' | 'twin-capture' | 'external-ai-access' | 'llm-settings';
 
 export interface Author {
   id: string;
@@ -18,6 +18,7 @@ export interface Post {
   comments: number;
   liked?: boolean;
   bookmarked?: boolean;
+  has3DModel?: boolean;
 }
 
 export interface ContactProfile {
